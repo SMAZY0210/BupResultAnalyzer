@@ -1,0 +1,775 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tabulation Sheet Analyser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,500;0,600;1,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+:root{
+  --paper:#e7ebe3; --card:#fbfcf8; --ink:#14201c; --ink2:#4d5c54; --ink3:#7c8a82;
+  --rule:#c5cdbe; --rule2:#dde3d7; --mark:#a3402a; --gold:#8d7420; --blue:#2c5a7a;
+  --g0:#1d6b4a; --g1:#3d8452; --g2:#5f9a56; --g3:#86ac57; --g4:#aab85c;
+  --g5:#c9b95d; --g6:#d9a54e; --g7:#d98a43; --g8:#cd6a38; --g9:#a3402a; --gab:#8a8f88;
+  --sh:0 1px 0 rgba(20,32,28,.06), 0 1px 3px rgba(20,32,28,.05);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,sans-serif; font-size:15px; line-height:1.55;
+  background-image:linear-gradient(var(--rule2) 1px,transparent 1px),linear-gradient(90deg,var(--rule2) 1px,transparent 1px);
+  background-size:28px 28px; background-position:-1px -1px;
+}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px 96px}
+
+/* masthead */
+header.mast{padding:44px 0 26px;border-bottom:2px solid var(--ink)}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink3)}
+h1{font-family:"IBM Plex Serif",Georgia,serif;font-weight:600;font-size:clamp(30px,5vw,46px);line-height:1.04;margin:8px 0 10px;letter-spacing:-.015em}
+.sub{color:var(--ink2);max-width:60ch;margin:0}
+
+/* drop */
+.drop{margin:26px 0 0;border:2px dashed var(--rule);background:var(--card);border-radius:3px;padding:34px 24px;text-align:center;transition:border-color .15s,background .15s;cursor:pointer}
+.drop:hover,.drop.hot{border-color:var(--mark);background:#fff}
+.drop h2{font-family:"IBM Plex Serif",serif;font-size:19px;margin:0 0 6px;font-weight:600}
+.drop p{margin:0;color:var(--ink3);font-size:13.5px}
+input[type=file]{display:none}
+
+/* file tabs */
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin:20px 0 0}
+.tab{font-family:"IBM Plex Mono",monospace;font-size:12px;padding:7px 12px;border:1px solid var(--rule);background:var(--card);border-radius:2px;cursor:pointer;color:var(--ink2)}
+.tab:hover{border-color:var(--ink3)}
+.tab.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+/* controls */
+.ctrls{display:flex;flex-wrap:wrap;gap:18px;align-items:center;padding:14px 0;margin-top:22px;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);font-size:13px}
+.ctrls label{display:flex;gap:7px;align-items:center;cursor:pointer;color:var(--ink2)}
+.ctrls select,.ctrls input[type=search]{font-family:"IBM Plex Mono",monospace;font-size:12.5px;padding:5px 8px;border:1px solid var(--rule);background:var(--card);border-radius:2px;color:var(--ink)}
+button.act{font-family:"IBM Plex Mono",monospace;font-size:12px;padding:6px 12px;border:1px solid var(--ink);background:transparent;color:var(--ink);border-radius:2px;cursor:pointer}
+button.act:hover{background:var(--ink);color:#fff}
+
+/* sections */
+section{margin:52px 0 0}
+.shead{display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--ink);padding-bottom:7px;margin-bottom:20px}
+.snum{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--mark);letter-spacing:.1em}
+.shead h2{font-family:"IBM Plex Serif",serif;font-size:22px;margin:0;font-weight:600;letter-spacing:-.01em}
+.note{font-size:13px;color:var(--ink3);margin:-8px 0 16px;max-width:72ch}
+
+/* stat grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule)}
+.cell{background:var(--card);padding:13px 14px}
+.cell .k{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);display:block;margin-bottom:5px}
+.cell .v{font-family:"IBM Plex Mono",monospace;font-size:21px;font-weight:500;letter-spacing:-.02em}
+.cell .x{font-size:11.5px;color:var(--ink3);display:block;margin-top:3px}
+
+/* tables */
+.tw{overflow-x:auto;border:1px solid var(--rule);background:var(--card)}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);text-align:left;padding:9px 11px;border-bottom:1px solid var(--ink);white-space:nowrap;background:var(--card);position:sticky;top:0}
+th.s{cursor:pointer;user-select:none}
+th.s:hover{color:var(--mark)}
+td{padding:7px 11px;border-bottom:1px solid var(--rule2);vertical-align:top}
+tbody tr:hover{background:#f2f5ee}
+.num{font-family:"IBM Plex Mono",monospace;text-align:right;font-variant-numeric:tabular-nums}
+.mono{font-family:"IBM Plex Mono",monospace}
+.nm{font-weight:500}
+.dim{color:var(--ink3)}
+
+/* chips */
+.chip{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:10.5px;padding:2px 6px;border-radius:2px;letter-spacing:.04em}
+.chip.hi{background:#dcece0;color:#1d6b4a}
+.chip.mid{background:#f0ecd8;color:#7d6a18}
+.chip.lo{background:#f6e0da;color:#a3402a}
+.chip.warn{background:#f6e0da;color:#a3402a}
+.chip.ok{background:#e4eadf;color:#4d5c54}
+
+/* ribbon */
+.rib{display:flex;height:22px;width:100%;min-width:220px;border:1px solid var(--rule);border-radius:2px;overflow:hidden}
+.rib i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 16px;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink2)}
+.legend span{display:flex;align-items:center;gap:5px}
+.legend b{width:11px;height:11px;border-radius:2px;display:block}
+
+/* two col */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+@media(max-width:820px){.two{grid-template-columns:1fr}}
+h3.mini{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);margin:0 0 9px;font-weight:500}
+
+svg{display:block;max-width:100%}
+.empty{color:var(--ink3);font-size:13.5px;padding:14px;background:var(--card);border:1px solid var(--rule)}
+footer{margin-top:70px;padding-top:18px;border-top:1px solid var(--rule);font-size:12.5px;color:var(--ink3)}
+:focus-visible{outline:2px solid var(--mark);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+<header class="mast">
+  <div class="eyebrow">RptTabulationSheet / reader</div>
+  <h1>Result analyser</h1>
+  <p class="sub">Drop a published tabulation sheet in. It reads the grade blocks, the semester summaries and the cumulative column, then works out what the sheet does not tell you directly: who is where, which course sank people, and how the class actually splits.</p>
+
+  <div class="drop" id="drop" tabindex="0" role="button" aria-label="Choose result files">
+    <h2>Choose result files</h2>
+    <p>.xlsx tabulation sheets, several at once. Nothing leaves this page.</p>
+  </div>
+  <input type="file" id="fin" multiple accept=".xlsx,.xls">
+  <div class="tabs" id="tabs"></div>
+</header>
+
+<div id="app"></div>
+
+<footer>
+  Reads the sheet in your browser only. Grade points follow the scale printed on the sheet: A+ 4.00, A 3.75, A- 3.50, B+ 3.25, B 3.00, B- 2.75, C+ 2.50, C 2.25, D 2.00, F 0.00, AB 0.00 (absent).
+</footer>
+</div>
+
+<script>
+// ==== CORE (pure) ====
+const GP = {'A+':4,'A':3.75,'A-':3.5,'B+':3.25,'B':3,'B-':2.75,'C+':2.5,'C':2.25,'D':2,'F':0,'AB':0};
+const GORDER = ['A+','A','A-','B+','B','B-','C+','C','D','F','AB'];
+const GCOL = {'A+':'#1d6b4a','A':'#3d8452','A-':'#5f9a56','B+':'#86ac57','B':'#aab85c','B-':'#c9b95d','C+':'#d9a54e','C':'#d98a43','D':'#cd6a38','F':'#a3402a','AB':'#8a8f88'};
+
+const nh = v => v==null ? '' : String(v).replace(/\s+/g,' ').trim();
+const num = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
+
+function findHeaderRow(rows){
+  for(let i=0;i<rows.length;i++){
+    const r = rows[i]; if(!r) continue;
+    const cells = r.map(nh);
+    if(cells[0]==='Ser' && cells.includes("Student's Name")) return i;
+  }
+  return -1;
+}
+
+function parseCourseTitles(rows){
+  const out = {};
+  for(const r of rows){
+    if(!r) continue;
+    const t = nh(r[0]);
+    if(!t.startsWith('Course Code & Title')) continue;
+    const body = t.slice(t.indexOf(':')+1);
+    const re = /(?:^|\s)(\d+)\.\s+([A-Z]{2,8}\d{3,4})\s*:\s*/g;
+    const hits = []; let m;
+    while((m = re.exec(body))!==null) hits.push({code:m[2], at:m.index, from:m.index+m[0].length});
+    hits.forEach((h,i)=>{
+      const end = i+1<hits.length ? hits[i+1].at : body.length;
+      out[h.code] = body.slice(h.from, Math.max(end,h.from)).trim();
+    });
+  }
+  return out;
+}
+
+function parseSheet(rows, sheetName){
+  const hi = findHeaderRow(rows);
+  if(hi<0) throw new Error('No header row with "Ser" and "Student\u2019s Name" found. Is this a tabulation sheet?');
+  const H = rows[hi].map(nh);
+
+  const courseCols = []; H.forEach((v,i)=>{ if(v==='Course Code') courseCols.push(i); });
+  const semCols = []; H.forEach((v,i)=>{ if(v==='Sem') semCols.push(i); });
+  const idx = k => H.indexOf(k);
+  const cTotEnr = H.findIndex(v=>/^Total Cr Enrolled$/i.test(v));
+  const cTotErn = H.findIndex(v=>/^Total Cr Earned$/i.test(v));
+  const cCg = H.lastIndexOf('CGPA');
+  const cSt = idx('Status'), cRm = idx('Remarks');
+
+  // masthead scraps above the header. The row directly above is the merged
+  // group banner ("Registration / Courses Taken / ..."), never a title.
+  let title = '', appeared=null, passed=null, rpd=null;
+  const fmtD = v => v instanceof Date ? v.toISOString().slice(0,10)
+    : nh(v).replace(/T\d\d:\d\d:\d\d.*$/,'');
+  for(let i=0;i<hi-1;i++){
+    const r = rows[i]||[];
+    for(let j=0;j<r.length;j++){
+      const v = nh(r[j]); if(!v) continue;
+      if(/^Appeared$/i.test(v)) appeared = num(r[j+1]);
+      else if(/^Passed/i.test(v)) passed = num(r[j+1]);
+      else if(/^RPD$/i.test(v)){                       // label sits above its date
+        const below = rows[i+1] && rows[i+1][j];
+        rpd = 'RPD ' + (fmtD(below) || '');
+      }
+      else if(!title && v.length>12) title = v;
+    }
+  }
+  // the other layout prints the date on a trailing row instead
+  for(const r of rows){
+    if(!r) continue;
+    for(const c of r){ const t=nh(c); if(/^RPD[:\s-]/i.test(t) && t.length>5) rpd = t; }
+  }
+
+  const students = [];
+  for(let i=hi+1;i<rows.length;i++){
+    const r = rows[i]; if(!r) continue;
+    if(typeof r[0] !== 'number') continue;
+    const courses = [];
+    for(const c of courseCols){
+      const code = nh(r[c]); if(!code) continue;
+      const lg = nh(r[c+2]);
+      courses.push({code, cr:num(r[c+1])||0, lg, gp: lg in GP ? GP[lg] : (num(r[c+3])??0)});
+    }
+    const sems = [];
+    for(const c of semCols){
+      const s = num(r[c]); const g = num(r[c+3]);
+      if(s==null) continue;
+      sems.push({sem:s, enr:num(r[c+1]), earn:num(r[c+2]), gpa:g});
+    }
+    students.push({
+      ser:r[0], reg:nh(r[1]), session:nh(r[2]), id:nh(r[3]), name:nh(r[4]),
+      sex:nh(r[5]), batch:nh(r[6]), courses, sems,
+      totEnr:num(r[cTotEnr]), totEarn:num(r[cTotErn]),
+      cgpa:num(r[cCg]), status:nh(r[cSt]), remarks:nh(r[cRm])
+    });
+  }
+  // sheets in the RptTabulationSheet layout carry no printed title, so build one
+  if(!title && students.length){
+    const pre={}, bat={};
+    students.forEach(s=>{
+      s.courses.forEach(c=>{ const p=c.code.replace(/\d+$/,''); pre[p]=(pre[p]||0)+1; });
+      if(s.batch) bat[s.batch]=(bat[s.batch]||0)+1;
+    });
+    // GED/MATH/PHY and friends are service courses every department sits, so
+    // they win a plain count and name the sheet wrongly
+    const SERVICE = ['GED','MATH','PHY','CHEM','HUM','STAT','ENG1000'];
+    const topKey = o => Object.entries(o).sort((a,b)=>b[1]-a[1])[0];
+    const own = Object.fromEntries(Object.entries(pre).filter(([k])=>!SERVICE.includes(k)));
+    const p = topKey(Object.keys(own).length?own:pre), b = topKey(bat);
+    const sem = students[0].sems.length;
+    title = [p?p[0]:'Results', b?`Batch ${b[0]}`:null, sem?`up to Sem ${sem}`:null].filter(Boolean).join(' \u00b7 ');
+  }
+  return {title, appeared, passed, rpd, students, titles:parseCourseTitles(rows), nCourseSlots:courseCols.length, nSemSlots:semCols.length};
+}
+
+/* ---- statistics ---- */
+const sum = a => a.reduce((x,y)=>x+y,0);
+const mean = a => a.length ? sum(a)/a.length : NaN;
+function median(a){ if(!a.length) return NaN; const s=[...a].sort((x,y)=>x-y), m=s.length>>1;
+  return s.length%2 ? s[m] : (s[m-1]+s[m])/2; }
+function quantile(a,q){ if(!a.length) return NaN; const s=[...a].sort((x,y)=>x-y);
+  const p=(s.length-1)*q, lo=Math.floor(p), hi=Math.ceil(p);
+  return lo===hi ? s[lo] : s[lo]+(s[hi]-s[lo])*(p-lo); }
+function modes(a,dp=2){
+  const c={}; a.forEach(v=>{const k=v.toFixed(dp); c[k]=(c[k]||0)+1;});
+  const mx=Math.max(...Object.values(c));
+  return {vals:Object.keys(c).filter(k=>c[k]===mx).map(Number).sort((x,y)=>x-y), n:mx};
+}
+const pvar = a => { const m=mean(a); return mean(a.map(v=>(v-m)**2)); };
+const svar = a => { if(a.length<2) return NaN; const m=mean(a); return sum(a.map(v=>(v-m)**2))/(a.length-1); };
+const pstd = a => Math.sqrt(pvar(a));
+const sstd = a => Math.sqrt(svar(a));
+const mad  = a => { const m=mean(a); return mean(a.map(v=>Math.abs(v-m))); };           // mean absolute deviation
+const medad= a => { const m=median(a); return median(a.map(v=>Math.abs(v-m))); };       // median absolute deviation
+function skew(a){ const m=mean(a), s=pstd(a); return s? mean(a.map(v=>((v-m)/s)**3)) : NaN; }
+function kurt(a){ const m=mean(a), s=pstd(a); return s? mean(a.map(v=>((v-m)/s)**4))-3 : NaN; }
+function pearson(x,y){
+  const n=x.length; if(n<3) return NaN;
+  const mx=mean(x), my=mean(y);
+  let sxy=0,sxx=0,syy=0;
+  for(let i=0;i<n;i++){ const a=x[i]-mx,b=y[i]-my; sxy+=a*b; sxx+=a*a; syy+=b*b; }
+  return (sxx&&syy) ? sxy/Math.sqrt(sxx*syy) : NaN;
+}
+
+/* incomplete beta, for the t-test p-value */
+function gammln(x){
+  const c=[76.18009172947146,-86.50532032941677,24.01409824083091,-1.231739572450155,0.1208650973866179e-2,-0.5395239384953e-5];
+  let y=x,t=x+5.5; t-=(x+.5)*Math.log(t); let s=1.000000000190015;
+  for(let j=0;j<6;j++) s+=c[j]/++y;
+  return -t+Math.log(2.5066282746310005*s/x);
+}
+function betacf(a,b,x){
+  const FPMIN=1e-30; let qab=a+b,qap=a+1,qam=a-1,c=1,d=1-qab*x/qap;
+  if(Math.abs(d)<FPMIN) d=FPMIN; d=1/d; let h=d;
+  for(let m=1;m<=200;m++){
+    const m2=2*m; let aa=m*(b-m)*x/((qam+m2)*(a+m2));
+    d=1+aa*d; if(Math.abs(d)<FPMIN)d=FPMIN; c=1+aa/c; if(Math.abs(c)<FPMIN)c=FPMIN;
+    d=1/d; h*=d*c;
+    aa=-(a+m)*(qab+m)*x/((a+m2)*(qap+m2));
+    d=1+aa*d; if(Math.abs(d)<FPMIN)d=FPMIN; c=1+aa/c; if(Math.abs(c)<FPMIN)c=FPMIN;
+    d=1/d; const del=d*c; h*=del;
+    if(Math.abs(del-1)<3e-7) break;
+  }
+  return h;
+}
+function betai(a,b,x){
+  if(x<=0) return 0; if(x>=1) return 1;
+  const bt=Math.exp(gammln(a+b)-gammln(a)-gammln(b)+a*Math.log(x)+b*Math.log(1-x));
+  return x < (a+1)/(a+b+2) ? bt*betacf(a,b,x)/a : 1-bt*betacf(b,a,1-x)/b;
+}
+function welch(a,b){
+  const n1=a.length,n2=b.length;
+  if(n1<2||n2<2) return null;
+  const m1=mean(a),m2=mean(b),v1=svar(a),v2=svar(b);
+  const se=Math.sqrt(v1/n1+v2/n2);
+  if(!se) return null;
+  const t=(m1-m2)/se;
+  const df=(v1/n1+v2/n2)**2/(((v1/n1)**2)/(n1-1)+((v2/n2)**2)/(n2-1));
+  const p=betai(df/2,0.5,df/(df+t*t));
+  const pooled=Math.sqrt(((n1-1)*v1+(n2-1)*v2)/(n1+n2-2));
+  return {t,df,p,d:pooled?(m1-m2)/pooled:NaN,diff:m1-m2,m1,m2,n1,n2};
+}
+
+/* ---- derived views ---- */
+function rankAll(list){
+  const s=[...list].sort((a,b)=>b.cgpa-a.cgpa);
+  let rank=0,prev=null,seen=0;
+  s.forEach(st=>{ seen++; if(st.cgpa!==prev){rank=seen;prev=st.cgpa;} st.rank=rank; });
+  const n=s.length;
+  s.forEach(st=>{ st.pct = n>1 ? 100*s.filter(o=>o.cgpa<st.cgpa).length/(n-1) : 100; });
+  return s;
+}
+function terciles(list){
+  const s=[...list].sort((a,b)=>a.cgpa-b.cgpa);
+  const n=s.length, c1=Math.round(n/3), c2=Math.round(2*n/3);
+  const low=s.slice(0,c1), mid=s.slice(c1,c2), high=s.slice(c2);
+  low.forEach(x=>x.band='Low'); mid.forEach(x=>x.band='Mid'); high.forEach(x=>x.band='High');
+  return {low,mid,high,
+    cutLow: low.length?low[low.length-1].cgpa:NaN,
+    cutHigh: high.length?high[0].cgpa:NaN};
+}
+function courseStats(list){
+  const map = {};
+  list.forEach(st=>st.courses.forEach(c=>{
+    const e = map[c.code] || (map[c.code]={code:c.code,cr:c.cr,n:0,counts:{},gps:[],cg:[]});
+    e.n++; e.counts[c.lg]=(e.counts[c.lg]||0)+1; e.gps.push(c.gp);
+    if(st.cgpa!=null) e.cg.push(st.cgpa);
+  }));
+  return Object.values(map).map(e=>{
+    const f=(e.counts['F']||0), ab=(e.counts['AB']||0);
+    return {...e, mean:mean(e.gps), sd:pstd(e.gps), fail:f, absent:ab,
+      failRate:100*(f+ab)/e.n, top:100*((e.counts['A+']||0))/e.n,
+      r:pearson(e.gps,e.cg)};
+  }).sort((a,b)=>a.mean-b.mean);
+}
+function splitBy(list, fn){
+  const g={};
+  list.forEach(s=>{ const k=fn(s); if(k==null) return; (g[k]=g[k]||[]).push(s); });
+  return g;
+}
+const lastDigit = s => { const m=String(s||'').match(/(\d)\D*$/); return m?+m[1]:null; };
+const parity = s => { const d=lastDigit(s); return d==null?null:(d%2?'Odd':'Even'); };
+// ==== END CORE ====
+
+/* ---------- rendering ---------- */
+const FILES = [];
+let cur = 0;
+const S = {excludeZero:true, idField:'id', anon:false, sortKey:'rank', sortDir:1, q:''};
+
+const f2 = v => Number.isFinite(v) ? v.toFixed(2) : '\u2013';
+const f3 = v => Number.isFinite(v) ? v.toFixed(3) : '\u2013';
+const f1 = v => Number.isFinite(v) ? v.toFixed(1) : '\u2013';
+const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const initials = n => String(n||'').split(/\s+/).filter(Boolean).map(w=>w[0]).join('').slice(0,3);
+const shownName = s => S.anon ? (initials(s.name)+' \u00b7 '+String(s.id).slice(-4)) : s.name;
+
+const $ = id => document.getElementById(id);
+const drop=$('drop'), fin=$('fin');
+drop.onclick=()=>fin.click();
+drop.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();fin.click();} };
+['dragenter','dragover'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.add('hot')}));
+['dragleave','drop'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.remove('hot')}));
+drop.addEventListener('drop',e=>handle([...e.dataTransfer.files]));
+fin.onchange=e=>handle([...e.target.files]);
+
+function handle(files){
+  const jobs = files.filter(f=>/\.xlsx?$/i.test(f.name)).map(f=>new Promise(res=>{
+    const r=new FileReader();
+    r.onload=ev=>{
+      try{
+        const wb=XLSX.read(new Uint8Array(ev.target.result),{type:'array'});
+        const sn=wb.SheetNames[0];
+        const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:null,raw:true});
+        res({name:f.name, data:parseSheet(rows,sn)});
+      }catch(err){ res({name:f.name, error:err.message}); }
+    };
+    r.readAsArrayBuffer(f);
+  }));
+  Promise.all(jobs).then(rs=>{ rs.forEach(r=>FILES.push(r)); cur=FILES.length-rs.length; draw(); });
+}
+
+function drawTabs(){
+  $('tabs').innerHTML = FILES.map((f,i)=>
+    `<button class="tab ${i===cur?'on':''}" data-i="${i}">${esc(f.data?f.data.title||f.name:f.name)}</button>`).join('');
+  [...$('tabs').querySelectorAll('.tab')].forEach(b=>b.onclick=()=>{cur=+b.dataset.i; S.q=''; draw();});
+}
+
+function draw(){
+  drawTabs();
+  const F = FILES[cur];
+  if(!F){ $('app').innerHTML=''; return; }
+  if(F.error){ $('app').innerHTML=`<section><div class="empty">Could not read <b>${esc(F.name)}</b>. ${esc(F.error)}</div></section>`; return; }
+  const D = F.data;
+  const all = D.students;
+  const list = S.excludeZero ? all.filter(s=>s.cgpa!=null && s.cgpa>0) : all.filter(s=>s.cgpa!=null);
+  const dropped = all.length - list.length;
+  const cg = list.map(s=>s.cgpa);
+
+  rankAll(list);
+  const T = terciles(list);
+  const CS = courseStats(list);
+
+  const html = [];
+  html.push(controls(D, all, dropped));
+  if(!list.length){ $('app').innerHTML = html.join('')+`<div class="empty">No usable CGPA values in this sheet.</div>`; bind(); return; }
+  html.push(secCohort(D, all, list, cg));
+  html.push(secShape(list, cg, T));
+  html.push(secEnds(list));
+  html.push(secBands(T, list));
+  html.push(secCourses(CS, D.titles, list.length));
+  html.push(secParity(list));
+  html.push(secGroups(list));
+  html.push(secTrend(list, D));
+  html.push(secRisk(list, all));
+  html.push(secTable(list));
+  $('app').innerHTML = html.join('');
+  bind();
+}
+
+function controls(D, all, dropped){
+  return `<div class="ctrls">
+    <label><input type="checkbox" id="ez" ${S.excludeZero?'checked':''}> Leave out 0.00 CGPA${dropped?` (${dropped} row${dropped>1?'s':''})`:''}</label>
+    <label><input type="checkbox" id="an" ${S.anon?'checked':''}> Hide names</label>
+    <label>Odd/even read from
+      <select id="idf">
+        <option value="id" ${S.idField==='id'?'selected':''}>Student ID</option>
+        <option value="reg" ${S.idField==='reg'?'selected':''}>Registration No.</option>
+        <option value="ser" ${S.idField==='ser'?'selected':''}>Serial</option>
+      </select></label>
+    <button class="act" id="csv">Download table as CSV</button>
+    ${D.rpd?`<span class="dim mono" style="font-size:11.5px">${esc(D.rpd)}</span>`:''}
+  </div>`;
+}
+
+function sec(n,title,body,note){
+  return `<section><div class="shead"><span class="snum">${n}</span><h2>${title}</h2></div>${note?`<p class="note">${note}</p>`:''}${body}</section>`;
+}
+const cellHTML = (k,v,x)=>`<div class="cell"><span class="k">${k}</span><span class="v">${v}</span>${x?`<span class="x">${x}</span>`:''}</div>`;
+
+function modalBand(cg,w=0.1){
+  const b={}; cg.forEach(v=>{ const k=Math.floor(v/w); b[k]=(b[k]||0)+1; });
+  const [k,n]=Object.entries(b).sort((a,b2)=>b2[1]-a[1])[0];
+  return {lo:k*w, hi:(+k+1)*w, n};
+}
+function secCohort(D, all, list, cg){
+  const md = modes(cg), band = modalBand(cg);
+  const st = {}; all.forEach(s=>{ if(s.status) st[s.status]=(st[s.status]||0)+1; });
+  const statusRows = Object.entries(st).sort((a,b)=>b[1]-a[1])
+    .map(([k,v])=>`<tr><td>${esc(k)}</td><td class="num">${v}</td><td class="num">${f1(100*v/all.length)}%</td></tr>`).join('');
+  const g = [
+    cellHTML('On sheet', all.length, D.appeared!=null?`sheet says ${D.appeared} appeared`:''),
+    cellHTML('In these stats', list.length, 'rows with a real CGPA'),
+    cellHTML('Mean CGPA', f3(mean(cg))),
+    cellHTML('Median', f2(median(cg))),
+    md.n>=3
+      ? cellHTML('Mode', md.vals.slice(0,3).map(v=>v.toFixed(2)).join(', '), `${md.n} students share ${md.vals.length>1?'each':'it'}`)
+      : cellHTML('Modal band', `${band.lo.toFixed(2)}\u2013${band.hi.toFixed(2)}`, `${band.n} students; no single CGPA repeats enough for a real mode`),
+    cellHTML('Highest', f2(Math.max(...cg))),
+    cellHTML('Lowest', f2(Math.min(...cg))),
+    cellHTML('Range', f2(Math.max(...cg)-Math.min(...cg)))
+  ].join('');
+  return sec('01','The class at a glance',
+    `<div class="grid">${g}</div>
+     <div class="two" style="margin-top:24px">
+       <div><h3 class="mini">Result status</h3><div class="tw"><table><thead><tr><th>Status</th><th class="num">Students</th><th class="num">Share</th></tr></thead><tbody>${statusRows}</tbody></table></div></div>
+       <div><h3 class="mini">Sheet header</h3><div class="tw"><table><tbody>
+         <tr><td class="dim">Title</td><td class="nm">${esc(D.title||'\u2013')}</td></tr>
+         <tr><td class="dim">Appeared</td><td class="mono">${D.appeared??'\u2013'}</td></tr>
+         <tr><td class="dim">Passed / promoted</td><td class="mono">${D.passed??'\u2013'}</td></tr>
+         <tr><td class="dim">Course slots</td><td class="mono">${D.nCourseSlots}</td></tr>
+         <tr><td class="dim">Semesters shown</td><td class="mono">${D.nSemSlots}</td></tr>
+       </tbody></table></div></div>
+     </div>`);
+}
+
+function histSVG(cg, T){
+  const W=760,H=210,P={l:38,r:12,t:12,b:30};
+  const lo=Math.floor(Math.min(...cg)*10)/10, hi=Math.ceil(Math.max(...cg)*10)/10;
+  const bw=0.1, nb=Math.max(1,Math.round((hi-lo)/bw));
+  const bins=new Array(nb).fill(0);
+  cg.forEach(v=>{ let k=Math.floor((v-lo)/bw); if(k>=nb)k=nb-1; if(k<0)k=0; bins[k]++; });
+  const mx=Math.max(...bins);
+  const x=v=>P.l+(v-lo)/(hi-lo)*(W-P.l-P.r);
+  const y=c=>H-P.b-(c/mx)*(H-P.t-P.b);
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="CGPA distribution">`;
+  // tercile shading
+  if(Number.isFinite(T.cutLow)&&Number.isFinite(T.cutHigh)){
+    s+=`<rect x="${x(lo)}" y="${P.t}" width="${x(T.cutLow)-x(lo)}" height="${H-P.t-P.b}" fill="#a3402a" opacity=".055"/>`;
+    s+=`<rect x="${x(T.cutHigh)}" y="${P.t}" width="${x(hi)-x(T.cutHigh)}" height="${H-P.t-P.b}" fill="#1d6b4a" opacity=".055"/>`;
+  }
+  bins.forEach((c,i)=>{
+    if(!c) return;
+    const x0=x(lo+i*bw), x1=x(lo+(i+1)*bw);
+    s+=`<rect x="${x0+.6}" y="${y(c)}" width="${Math.max(1,x1-x0-1.2)}" height="${H-P.b-y(c)}" fill="#2c5a7a" opacity=".78"><title>${(lo+i*bw).toFixed(2)}\u2013${(lo+(i+1)*bw).toFixed(2)}: ${c}</title></rect>`;
+  });
+  const m=mean(cg), md=median(cg);
+  s+=`<line x1="${x(m)}" x2="${x(m)}" y1="${P.t}" y2="${H-P.b}" stroke="#a3402a" stroke-width="1.6"/>`;
+  s+=`<text x="${x(m)+4}" y="${P.t+11}" font-family="IBM Plex Mono" font-size="10" fill="#a3402a">mean ${m.toFixed(2)}</text>`;
+  s+=`<line x1="${x(md)}" x2="${x(md)}" y1="${P.t}" y2="${H-P.b}" stroke="#14201c" stroke-width="1" stroke-dasharray="3 3"/>`;
+  s+=`<text x="${x(md)+4}" y="${P.t+24}" font-family="IBM Plex Mono" font-size="10" fill="#14201c">median ${md.toFixed(2)}</text>`;
+  s+=`<line x1="${P.l}" x2="${W-P.r}" y1="${H-P.b}" y2="${H-P.b}" stroke="#14201c"/>`;
+  for(let v=lo;v<=hi+1e-9;v+=(hi-lo)/6){
+    s+=`<text x="${x(v)}" y="${H-P.b+15}" text-anchor="middle" font-family="IBM Plex Mono" font-size="10" fill="#7c8a82">${v.toFixed(2)}</text>`;
+  }
+  s+=`<text x="${P.l-6}" y="${P.t+9}" text-anchor="end" font-family="IBM Plex Mono" font-size="10" fill="#7c8a82">${mx}</text>`;
+  s+=`<text x="${P.l-6}" y="${H-P.b}" text-anchor="end" font-family="IBM Plex Mono" font-size="10" fill="#7c8a82">0</text>`;
+  return s+'</svg>';
+}
+
+function secShape(list, cg, T){
+  const q1=quantile(cg,.25), q3=quantile(cg,.75);
+  const sk=skew(cg);
+  const g=[
+    cellHTML('Std deviation', f3(pstd(cg)), 'population'),
+    cellHTML('Sample SD', f3(sstd(cg)), 'n\u22121 divisor'),
+    cellHTML('Variance', f3(pvar(cg))),
+    cellHTML('Mean abs. dev.', f3(mad(cg)), 'average gap from the mean'),
+    cellHTML('Median abs. dev.', f3(medad(cg)), 'outlier-proof spread'),
+    cellHTML('Coeff. of variation', f1(100*pstd(cg)/mean(cg))+'%'),
+    cellHTML('IQR', f2(q3-q1), `Q1 ${f2(q1)} \u2192 Q3 ${f2(q3)}`),
+    cellHTML('Skew', f2(sk), sk>0.3?'tail towards the top':sk<-0.3?'tail towards the bottom':'roughly even'),
+    cellHTML('Excess kurtosis', f2(kurt(cg)))
+  ].join('');
+  const out = cg.filter(v=>v<q1-1.5*(q3-q1)||v>q3+1.5*(q3-q1));
+  return sec('02','Spread and shape',
+    `<div class="grid">${g}</div>
+     <div style="margin-top:24px;background:var(--card);border:1px solid var(--rule);padding:14px">${histSVG(cg,T)}</div>
+     <p class="note" style="margin-top:12px">Bars are 0.10 CGPA wide. Shaded ends are the bottom and top thirds from section 04. ${out.length?`${out.length} value${out.length>1?'s':''} sit outside the 1.5\u00d7IQR fence.`:'Nothing falls outside the 1.5\u00d7IQR fence.'}</p>`,
+    'Central deviation, read three ways: the usual standard deviation, the mean absolute deviation, and the median absolute deviation. The last one barely moves when one student bombs, so a big gap between it and the SD tells you the tail is doing the work.');
+}
+
+function secEnds(list){
+  const s=[...list].sort((a,b)=>b.cgpa-a.cgpa);
+  const top=s.slice(0,10), bot=s.slice(-10).reverse();
+  const row=st=>`<tr><td class="num mono">${st.rank}</td><td class="nm">${esc(shownName(st))}</td><td class="mono dim">${esc(st.id)}</td><td class="num mono"><b>${f2(st.cgpa)}</b></td><td>${esc(st.status)}</td></tr>`;
+  const tbl=(t,rows)=>`<div><h3 class="mini">${t}</h3><div class="tw"><table><thead><tr><th>#</th><th>Student</th><th>ID</th><th class="num">CGPA</th><th>Status</th></tr></thead><tbody>${rows.map(row).join('')}</tbody></table></div></div>`;
+  const hi=s[0], lo=s[s.length-1];
+  return sec('03','Top and bottom',
+    `<div class="grid" style="margin-bottom:22px">
+      ${cellHTML('Highest CGPA', f2(hi.cgpa), esc(shownName(hi)))}
+      ${cellHTML('Lowest CGPA', f2(lo.cgpa), esc(shownName(lo)))}
+      ${cellHTML('Gap', f2(hi.cgpa-lo.cgpa), 'top to bottom')}
+      ${cellHTML('At 3.75+', s.filter(x=>x.cgpa>=3.75).length, 'distinction band')}
+      ${cellHTML('Below 2.50', s.filter(x=>x.cgpa<2.5).length)}
+     </div>
+     <div class="two">${tbl('Top ten',top)}${tbl('Bottom ten',bot)}</div>`);
+}
+
+function bandStats(b){
+  if(!b.length) return '\u2013';
+  const c=b.map(s=>s.cgpa);
+  return `${b.length} students \u00b7 ${f2(Math.min(...c))} to ${f2(Math.max(...c))} \u00b7 mean ${f3(mean(c))} \u00b7 SD ${f3(pstd(c))}`;
+}
+function secBands(T, list){
+  const rows=[['High','hi',T.high],['Mid','mid',T.mid],['Low','lo',T.low]].map(([n,c,b])=>{
+    const cgv=b.map(s=>s.cgpa);
+    return `<tr><td><span class="chip ${c}">${n}</span></td><td class="num mono">${b.length}</td>
+      <td class="num mono">${b.length?f2(Math.min(...cgv)):'\u2013'} \u2013 ${b.length?f2(Math.max(...cgv)):'\u2013'}</td>
+      <td class="num mono">${f3(mean(cgv))}</td><td class="num mono">${f3(pstd(cgv))}</td>
+      <td class="num mono">${f1(100*b.length/list.length)}%</td></tr>`;
+  }).join('');
+  return sec('04','Three bands, near enough equal',
+    `<div class="tw"><table><thead><tr><th>Band</th><th class="num">Students</th><th class="num">CGPA range</th><th class="num">Mean</th><th class="num">SD</th><th class="num">Share</th></tr></thead><tbody>${rows}</tbody></table></div>
+     <p class="note" style="margin-top:12px">Cut points: below <b>${f2(T.cutLow)}</b> is Low, <b>${f2(T.cutHigh)}</b> and above is High. Ties sitting exactly on a cut can push a band one or two students off exact thirds, which is why the shares are not a clean 33/33/33.</p>`,
+    'Split by headcount rather than by CGPA value, so each band holds about a third of the class. Grouping by equal CGPA width instead would leave the bottom band nearly empty in most sheets.');
+}
+
+function ribbon(counts,n){
+  return `<div class="rib">`+GORDER.filter(g=>counts[g]).map(g=>{
+    const w=100*counts[g]/n;
+    return `<i style="width:${w}%;background:${GCOL[g]}" title="${g}: ${counts[g]} (${w.toFixed(1)}%)"></i>`;
+  }).join('')+`</div>`;
+}
+function secCourses(CS, titles, n){
+  const cut = Math.max(5, n*0.25);
+  const main = CS.filter(c=>c.n>=cut), carried = CS.filter(c=>c.n<cut);
+  const legend=`<div class="legend">${GORDER.map(g=>`<span><b style="background:${GCOL[g]}"></b>${g}</span>`).join('')}</div>`;
+  const mkrows = arr => arr.map(c=>`<tr>
+    <td class="mono nm">${esc(c.code)}${titles[c.code]?`<br><span class="dim" style="font-size:11.5px;font-family:'IBM Plex Sans'">${esc(titles[c.code])}</span>`:''}</td>
+    <td class="num mono">${c.cr}</td><td class="num mono">${c.n}</td>
+    <td style="min-width:230px">${ribbon(c.counts,c.n)}</td>
+    <td class="num mono"><b>${f2(c.mean)}</b></td>
+    <td class="num mono">${f2(c.sd)}</td>
+    <td class="num mono">${c.fail}${c.absent?` <span class="dim">+${c.absent} ab</span>`:''}</td>
+    <td class="num mono">${f1(c.failRate)}%</td>
+    <td class="num mono">${f1(c.top)}%</td>
+    <td class="num mono">${f2(c.r)}</td></tr>`).join('');
+  const head=`<thead><tr><th>Course</th><th class="num">Cr</th><th class="num">Took</th><th>Grade spread</th><th class="num">Mean GP</th><th class="num">SD</th><th class="num">F</th><th class="num">F+AB</th><th class="num">A+</th><th class="num">r vs CGPA</th></tr></thead>`;
+  const src = main.length ? main : CS;
+  const gridRows=src.map(c=>`<tr><td class="mono nm">${esc(c.code)}</td>${GORDER.map(g=>`<td class="num mono ${c.counts[g]?'':'dim'}">${c.counts[g]||'\u00b7'}</td>`).join('')}<td class="num mono">${c.n}</td></tr>`).join('');
+  const hardest=src[0], easiest=src[src.length-1];
+  const sepa=[...src].filter(c=>Number.isFinite(c.r)).sort((a,b)=>b.r-a.r)[0];
+  return sec('05','Course by course',
+    `<div class="grid" style="margin-bottom:22px">
+      ${cellHTML('Toughest', esc(hardest.code), `mean GP ${f2(hardest.mean)}, ${f1(hardest.failRate)}% F or AB`)}
+      ${cellHTML('Kindest', esc(easiest.code), `mean GP ${f2(easiest.mean)}`)}
+      ${sepa?cellHTML('Best CGPA signal', esc(sepa.code), `r = ${f2(sepa.r)} against CGPA`):''}
+     </div>
+     ${legend}
+     <div class="tw"><table>${head}<tbody>${mkrows(src)}</tbody></table></div>
+     ${main.length&&carried.length?`<h3 class="mini" style="margin-top:26px">Carried and retaken courses <span style="text-transform:none;letter-spacing:0">(fewer than ${Math.ceil(cut)} sat them)</span></h3>
+       <div class="tw"><table>${head}<tbody>${mkrows(carried)}</tbody></table></div>`:''}
+     <h3 class="mini" style="margin-top:26px">Exact counts</h3>
+     <div class="tw"><table><thead><tr><th>Course</th>${GORDER.map(g=>`<th class="num">${g}</th>`).join('')}<th class="num">n</th></tr></thead><tbody>${gridRows}</tbody></table></div>`,
+    'Sorted toughest first by mean grade point. Courses only a handful of students sat are pulled into a separate table below, otherwise one person resitting a paper and failing it shows up as the hardest course on the sheet. The last column is how strongly a course tracks overall CGPA: high means it sorted the class the same way everything else did, low means it graded on something of its own.');
+}
+
+function cmpTable(g, keys, labels){
+  const rows=keys.map((k,i)=>{
+    const b=g[k]||[]; const c=b.map(s=>s.cgpa);
+    return `<tr><td class="nm">${labels?labels[i]:k}</td><td class="num mono">${b.length}</td>
+      <td class="num mono">${f3(mean(c))}</td><td class="num mono">${f2(median(c))}</td>
+      <td class="num mono">${f3(pstd(c))}</td>
+      <td class="num mono">${b.length?f2(Math.min(...c)):'\u2013'}</td><td class="num mono">${b.length?f2(Math.max(...c)):'\u2013'}</td></tr>`;
+  }).join('');
+  return `<div class="tw"><table><thead><tr><th>Group</th><th class="num">n</th><th class="num">Mean</th><th class="num">Median</th><th class="num">SD</th><th class="num">Min</th><th class="num">Max</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+function verdict(w){
+  if(!w) return '<div class="empty">One of the groups is too small to compare.</div>';
+  const sig = w.p<0.05;
+  const mag = Math.abs(w.d)<0.2?'negligible':Math.abs(w.d)<0.5?'small':Math.abs(w.d)<0.8?'moderate':'large';
+  return `<p class="note" style="margin-top:12px">Difference in means is <b>${f3(Math.abs(w.diff))}</b> CGPA. Welch t = ${f2(w.t)} on ${f1(w.df)} df, p = ${w.p<0.001?'&lt;0.001':f3(w.p)}, Cohen's d = ${f2(w.d)} (${mag}). ${sig?'That clears the usual 5% bar, so the gap is unlikely to be luck alone.':'That is well inside what random splitting produces, so treat the two groups as the same.'}</p>`;
+}
+function secParity(list){
+  const key = S.idField;
+  const g = splitBy(list, s=>parity(key==='ser'?s.ser:s[key]));
+  const odd=(g['Odd']||[]).map(s=>s.cgpa), even=(g['Even']||[]).map(s=>s.cgpa);
+  const w = welch(odd,even);
+  return sec('06','Odd IDs against even IDs',
+    cmpTable(g,['Odd','Even'])+verdict(w),
+    `Splitting on the last digit of the ${key==='id'?'student ID':key==='reg'?'registration number':'serial number'}. There is no reason for these halves to differ, so this doubles as a sanity check on the rest of the page. Worth knowing before you read anything into it: run this on twenty sheets and about one will cross the 5% line on luck alone, so a single significant split here is not a finding.`);
+}
+
+function secGroups(list){
+  const sex=splitBy(list,s=>s.sex==='M'?'Male':s.sex==='F'?'Female':null);
+  const w=welch((sex['Male']||[]).map(s=>s.cgpa),(sex['Female']||[]).map(s=>s.cgpa));
+  const ses=splitBy(list,s=>s.session||null);
+  const sk=Object.keys(ses).sort();
+  const bat=splitBy(list,s=>s.batch||null);
+  const bk=Object.keys(bat).sort();
+  return sec('07','Other cuts of the same class',
+    `<h3 class="mini">By sex</h3>${cmpTable(sex,['Female','Male'])}${verdict(w)}
+     <h3 class="mini" style="margin-top:28px">By session</h3>${cmpTable(ses,sk)}
+     <p class="note" style="margin-top:10px">Repeaters and relegated students carry an older session, so a weak older-session group usually means retakes rather than a weak intake year.</p>
+     ${bk.length>1?`<h3 class="mini" style="margin-top:28px">By batch</h3>${cmpTable(bat,bk)}`:''}`);
+}
+
+function secTrend(list, D){
+  const withS = list.filter(s=>s.sems.length>1);
+  if(!withS.length) return sec('08','Semester to semester',`<div class="empty">This sheet carries a single semester, so there is no trend to draw yet. Load an upper-semester sheet to see it.</div>`);
+  const maxSem = Math.max(...withS.flatMap(s=>s.sems.map(x=>x.sem)));
+  const per=[];
+  for(let i=1;i<=maxSem;i++){
+    const v=withS.map(s=>{const f=s.sems.find(x=>x.sem===i); return f&&Number.isFinite(f.gpa)?f.gpa:null}).filter(x=>x!=null);
+    if(v.length) per.push({sem:i,n:v.length,mean:mean(v),sd:pstd(v),min:Math.min(...v),max:Math.max(...v)});
+  }
+  const deltas = withS.map(s=>{
+    const g=s.sems.filter(x=>Number.isFinite(x.gpa)).sort((a,b)=>a.sem-b.sem);
+    return g.length>1 ? {s, d:g[g.length-1].gpa-g[0].gpa, from:g[0], to:g[g.length-1]} : null;
+  }).filter(Boolean).sort((a,b)=>b.d-a.d);
+  const dr=x=>`<tr><td class="nm">${esc(shownName(x.s))}</td><td class="mono dim">${esc(x.s.id)}</td><td class="num mono">${f2(x.from.gpa)}</td><td class="num mono">${f2(x.to.gpa)}</td><td class="num mono"><b style="color:${x.d>=0?'#1d6b4a':'#a3402a'}">${x.d>=0?'+':''}${f2(x.d)}</b></td></tr>`;
+  const tt=(t,rows)=>`<div><h3 class="mini">${t}</h3><div class="tw"><table><thead><tr><th>Student</th><th>ID</th><th class="num">Sem ${deltas[0].from.sem}</th><th class="num">Latest</th><th class="num">Change</th></tr></thead><tbody>${rows.map(dr).join('')}</tbody></table></div></div>`;
+  // sparkline
+  const W=760,H=170,P={l:38,r:14,t:14,b:26};
+  const lo=Math.min(...per.map(p=>p.mean))-.15, hi=Math.max(...per.map(p=>p.mean))+.15;
+  const X=i=>P.l+(per.length>1?i/(per.length-1):0.5)*(W-P.l-P.r);
+  const Y=v=>H-P.b-((v-lo)/(hi-lo))*(H-P.t-P.b);
+  let sv=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Mean GPA by semester">`;
+  sv+=`<polyline fill="none" stroke="#2c5a7a" stroke-width="2" points="${per.map((p,i)=>`${X(i)},${Y(p.mean)}`).join(' ')}"/>`;
+  per.forEach((p,i)=>{
+    sv+=`<circle cx="${X(i)}" cy="${Y(p.mean)}" r="4" fill="#2c5a7a"><title>Sem ${p.sem}: mean ${p.mean.toFixed(3)} (n=${p.n})</title></circle>`;
+    sv+=`<text x="${X(i)}" y="${Y(p.mean)-11}" text-anchor="middle" font-family="IBM Plex Mono" font-size="10.5" fill="#14201c">${p.mean.toFixed(2)}</text>`;
+    sv+=`<text x="${X(i)}" y="${H-P.b+15}" text-anchor="middle" font-family="IBM Plex Mono" font-size="10" fill="#7c8a82">S${p.sem}</text>`;
+  });
+  sv+=`<line x1="${P.l}" x2="${W-P.r}" y1="${H-P.b}" y2="${H-P.b}" stroke="#c5cdbe"/></svg>`;
+  const prows=per.map(p=>`<tr><td class="mono">Sem ${p.sem}</td><td class="num mono">${p.n}</td><td class="num mono">${f3(p.mean)}</td><td class="num mono">${f3(p.sd)}</td><td class="num mono">${f2(p.min)}</td><td class="num mono">${f2(p.max)}</td></tr>`).join('');
+  return sec('08','Semester to semester',
+    `<div style="background:var(--card);border:1px solid var(--rule);padding:14px">${sv}</div>
+     <div class="tw" style="margin-top:20px"><table><thead><tr><th>Semester</th><th class="num">n</th><th class="num">Mean GPA</th><th class="num">SD</th><th class="num">Min</th><th class="num">Max</th></tr></thead><tbody>${prows}</tbody></table></div>
+     <div class="two" style="margin-top:26px">${tt('Climbed the most',deltas.slice(0,8))}${tt('Slipped the most',deltas.slice(-8).reverse())}</div>`,
+    'Only students carrying more than one semester on the sheet are in here. The SD column matters as much as the mean: a class can hold its average steady while quietly spreading out.');
+}
+
+function secRisk(list, all){
+  const risk=list.filter(s=>s.cgpa<2.5 || (s.totEnr&&s.totEarn&&s.totEarn<s.totEnr) || s.courses.some(c=>c.lg==='F'||c.lg==='AB'))
+    .sort((a,b)=>a.cgpa-b.cgpa);
+  const rows=risk.map(s=>{
+    const bad=s.courses.filter(c=>c.lg==='F'||c.lg==='AB');
+    const def=(s.totEnr??0)-(s.totEarn??0);
+    return `<tr><td class="nm">${esc(shownName(s))}</td><td class="mono dim">${esc(s.id)}</td>
+      <td class="num mono">${f2(s.cgpa)}</td>
+      <td class="num mono">${def>0?`<span class="chip warn">${f2(def)} cr short</span>`:'<span class="chip ok">clear</span>'}</td>
+      <td class="mono">${bad.length?bad.map(c=>`${c.code} <span class="dim">${c.lg}</span>`).join(', '):'<span class="dim">\u2013</span>'}</td>
+      <td>${esc(s.status)}</td><td class="dim">${esc(s.remarks||'')}</td></tr>`;
+  }).join('');
+  const fails={}; list.forEach(s=>s.courses.forEach(c=>{ if(c.lg==='F'||c.lg==='AB') fails[c.code]=(fails[c.code]||0)+1; }));
+  const fr=Object.entries(fails).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td class="mono nm">${esc(k)}</td><td class="num mono">${v}</td></tr>`).join('');
+  const totalDef = list.reduce((a,s)=>a+Math.max(0,(s.totEnr??0)-(s.totEarn??0)),0);
+  return sec('09','Who needs watching',
+    `<div class="grid" style="margin-bottom:22px">
+      ${cellHTML('Flagged', risk.length, 'below 2.50, short on credits, or holding an F/AB')}
+      ${cellHTML('Credit shortfall', f2(totalDef), 'total credits owed by the class')}
+      ${cellHTML('Retake load', Object.values(fails).reduce((a,b)=>a+b,0), 'course sittings to redo')}
+     </div>
+     ${risk.length?`<div class="tw"><table><thead><tr><th>Student</th><th>ID</th><th class="num">CGPA</th><th class="num">Credits</th><th>Failed / absent</th><th>Status</th><th>Remarks</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="empty">Nobody trips any of the flags on this sheet.</div>'}
+     ${fr?`<h3 class="mini" style="margin-top:26px">Retakes by course</h3><div class="tw" style="max-width:340px"><table><thead><tr><th>Course</th><th class="num">Sittings to redo</th></tr></thead><tbody>${fr}</tbody></table></div>`:''}`);
+}
+
+let TABLE=[];
+function secTable(list){
+  TABLE=list;
+  return sec('10','Every student',
+    `<div class="ctrls" style="border-top:none;margin-top:0;padding-top:0">
+      <input type="search" id="q" placeholder="Search name, ID or status" value="${esc(S.q)}" style="min-width:270px">
+      <span class="dim mono" id="qn" style="font-size:11.5px"></span>
+     </div>
+     <div class="tw" id="stw"></div>`,
+    'Click a column heading to sort. Percentile is the share of the class sitting strictly below that student.');
+}
+function paintTable(){
+  const q=S.q.toLowerCase();
+  let rows=TABLE.filter(s=>!q || (s.name+' '+s.id+' '+s.reg+' '+s.status).toLowerCase().includes(q));
+  const k=S.sortKey;
+  rows=[...rows].sort((a,b)=>{
+    let x=a[k],y=b[k];
+    if(k==='name') { x=shownName(a); y=shownName(b); }
+    if(typeof x==='string'||typeof y==='string') return String(x).localeCompare(String(y))*S.sortDir;
+    return ((x??-1)-(y??-1))*S.sortDir;
+  });
+  const cols=[['rank','#'],['name','Student'],['id','ID'],['sex','Sex'],['session','Session'],['cgpa','CGPA'],['pct','Pctile'],['band','Band'],['totEarn','Cr earned'],['status','Status']];
+  const head=cols.map(([k2,l])=>`<th class="s ${['rank','cgpa','pct','totEarn'].includes(k2)?'num':''}" data-k="${k2}">${l}${S.sortKey===k2?(S.sortDir>0?' \u2191':' \u2193'):''}</th>`).join('');
+  const body=rows.map(s=>`<tr>
+    <td class="num mono">${s.rank}</td><td class="nm">${esc(shownName(s))}</td>
+    <td class="mono dim">${esc(s.id)}</td><td class="mono">${esc(s.sex)}</td><td class="mono dim">${esc(s.session)}</td>
+    <td class="num mono"><b>${f2(s.cgpa)}</b></td><td class="num mono">${f1(s.pct)}</td>
+    <td><span class="chip ${s.band==='High'?'hi':s.band==='Mid'?'mid':'lo'}">${s.band||''}</span></td>
+    <td class="num mono">${s.totEarn??'\u2013'}${s.totEnr&&s.totEarn<s.totEnr?` <span class="dim">/${s.totEnr}</span>`:''}</td>
+    <td>${esc(s.status)}</td></tr>`).join('');
+  $('stw').innerHTML=`<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+  $('qn').textContent=`${rows.length} of ${TABLE.length}`;
+  [...$('stw').querySelectorAll('th.s')].forEach(th=>th.onclick=()=>{
+    const k2=th.dataset.k;
+    if(S.sortKey===k2) S.sortDir*=-1; else {S.sortKey=k2; S.sortDir=(k2==='name'||k2==='status'||k2==='id'||k2==='sex'||k2==='session'||k2==='band')?1:-1;}
+    paintTable();
+  });
+}
+
+function toCSV(){
+  const head=['Rank','Name','StudentID','Registration','Sex','Session','Batch','CGPA','Percentile','Band','CrEnrolled','CrEarned','Status','Remarks'];
+  const lines=[head.join(',')];
+  TABLE.forEach(s=>lines.push([s.rank,shownName(s),s.id,s.reg,s.sex,s.session,s.batch,s.cgpa,s.pct?.toFixed(1),s.band,s.totEnr,s.totEarn,s.status,s.remarks]
+    .map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')));
+  const blob=new Blob([lines.join('\n')],{type:'text/csv'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=(FILES[cur].data.title||'results').replace(/[^\w-]+/g,'_')+'.csv';
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+function bind(){
+  const ez=$('ez'), an=$('an'), idf=$('idf'), csv=$('csv'), q=$('q');
+  if(ez) ez.onchange=e=>{S.excludeZero=e.target.checked; draw();};
+  if(an) an.onchange=e=>{S.anon=e.target.checked; draw();};
+  if(idf) idf.onchange=e=>{S.idField=e.target.value; draw();};
+  if(csv) csv.onclick=toCSV;
+  if(q){ q.oninput=e=>{S.q=e.target.value; paintTable();}; paintTable(); }
+}
+</script>
