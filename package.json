@@ -1,0 +1,9 @@
+{
+  "name": "bup-result-analyser",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Reads published BUP tabulation sheets in the browser",
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  }
+}

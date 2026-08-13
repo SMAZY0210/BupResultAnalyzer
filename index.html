@@ -72,6 +72,13 @@ h1{font-family:"IBM Plex Serif",Georgia,serif;font-weight:600;
 .cta:hover{transform:translateY(-1px);opacity:.9}
 .cta svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .ctarow{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.count{margin-top:22px;font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.05em;
+  color:var(--ink3);display:none;align-items:center;gap:9px}
+.count.on{display:flex}
+.count b{color:var(--ink);font-weight:600;font-size:13.5px}
+.count .dot{width:6px;height:6px;border-radius:50%;background:var(--gr0);flex-shrink:0;
+  animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
 .ctanote{font-size:13.5px;color:var(--ink3);max-width:30ch}
 
 /* sections */
@@ -139,6 +146,8 @@ footer{padding:40px 0 0}
     </a>
     <span class="ctanote">Drop in an .xlsx sheet. Nothing to install.</span>
   </div>
+
+  <div class="count" id="count" aria-live="polite"></div>
 </div>
 
 <section>
@@ -210,6 +219,7 @@ footer{padding:40px 0 0}
     <a href="https://smazy0210.tech" target="_blank" rel="noopener">SMAZY0210</a>
     <span class="eyebrow" style="margin-left:auto">smazy0210.tech</span>
   </div>
+  <p class="fine">The visitor count is a tally of unique arrivals. Addresses are hashed with a secret salt before anything is written, so the count exists and the addresses do not. Result files are never part of it.</p>
   <p class="fine">Not an official BUP tool, and not affiliated with the university. It reads published result sheets and nothing else. Figures are descriptive: they tell you the size of a gap, never the reason for one.</p>
 </footer>
 
@@ -240,6 +250,21 @@ document.getElementById('theme').onclick = () =>
   setTheme(document.documentElement.getAttribute('data-theme')==='dark' ? 'light' : 'dark');
 if(sysDark && sysDark.addEventListener)
   sysDark.addEventListener('change', e => { if(!store.get()) setTheme(e.matches?'dark':'light'); });
+
+/* visitor count. Fails silently: a dead counter must not look like a broken page */
+(async () => {
+  try {
+    const r = await fetch('/api/hits', { cache: 'no-store' });
+    if (!r.ok) return;
+    const d = await r.json();
+    if (!d || typeof d.total !== 'number' || d.total < 1) return;
+    const n = v => v.toLocaleString('en-US');
+    const el = document.getElementById('count');
+    el.innerHTML = `<span class="dot"></span><span><b>${n(d.total)}</b> ${d.total === 1 ? 'person has' : 'people have'} used this`
+      + (d.today > 0 ? `, <b>${n(d.today)}</b> today` : '') + `</span>`;
+    el.classList.add('on');
+  } catch (e) { /* offline, blocked, or not deployed yet */ }
+})();
 
 /* hero ribbon, weighted like a real cohort rather than eleven equal slices */
 const BANDS = [
