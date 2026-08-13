@@ -81,6 +81,8 @@ There is no reason these halves should differ, which makes this a sanity check o
 
 **10 Every student.** Sortable, searchable table with rank, percentile, band, credits earned against enrolled, and status. Exports to CSV.
 
+The **#** column counts the rows as they currently sit. Sort by Sem 3 and the serial reads 1, 2, 3 down the page rather than carrying the CGPA ranking with it. Under any sort other than the default, each row also shows its CGPA rank in small grey type beside the position, so you can see at a glance that whoever topped Sem 6 was only twelfth overall. In the default view the serial is the CGPA rank itself, ties included, which is why two students can share a number there.
+
 Click any row to open that student's full grade sheet underneath it: every course with its letter grade, credit weight and grade point, the course titles where the sheet prints them, and a strip of GPA per semester with credits earned against enrolled. A weighted average across just the courses on this sheet is shown too, which is not the same number as the CGPA and is worth comparing against it.
 
 Every semester on the sheet gets its own sortable column, so you can rank the class by Sem 3 alone and see who peaked early against who came good late. Students who never sat a given semester show a dot and sink to the bottom whichever way you sort, rather than being treated as a zero. On a single semester sheet the columns are skipped, since they would only repeat the CGPA.

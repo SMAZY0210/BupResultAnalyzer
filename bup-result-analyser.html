@@ -135,6 +135,8 @@ tr.drow .inner{padding:16px 18px 18px}
 .semstrip .sv{font-family:"IBM Plex Mono",monospace;font-size:15px;font-weight:500}
 .dmeta{display:flex;flex-wrap:wrap;gap:18px;margin-bottom:12px;font-size:13px;color:var(--ink2)}
 .dmeta b{font-family:"IBM Plex Mono",monospace;color:var(--ink);font-weight:600}
+.cgrank{font-size:10.5px;color:var(--ink3);margin-left:5px;font-weight:400}
+.cgrank::before{content:'\00b7'}
 th.semcol,td.semcol{background:var(--hover)}
 td.semcol.lead{color:var(--mark);font-weight:600}
 th.semcol{border-bottom-color:var(--mark)}
@@ -865,13 +867,12 @@ function detailHTML(s, span){
   </div></td></tr>`;
 }
 
-function paintTable(){
+function visibleRows(){
   const q=S.q.toLowerCase();
   let rows=TABLE.filter(s=>!q || (s.name+' '+s.id+' '+s.reg+' '+s.status).toLowerCase().includes(q));
   if(S.onlyCleared) rows=rows.filter(isCleared);
   const k=S.sortKey;
-  const isSem = /^g\d+$/.test(k);
-  rows=[...rows].sort((a,b)=>{
+  return [...rows].sort((a,b)=>{
     let x=a[k],y=b[k];
     if(k==='name') { x=shownName(a); y=shownName(b); }
     if(typeof x==='string'||typeof y==='string') return String(x).localeCompare(String(y))*S.sortDir;
@@ -881,19 +882,29 @@ function paintTable(){
     if(y==null) return -1;
     return (x-y)*S.sortDir;
   });
+}
+// the default view is the CGPA ranking itself, so show the real rank there
+// (ties share a number). Under any other sort the serial counts the rows.
+const isRankView = () => S.sortKey==='rank' && S.sortDir===1;
+
+function paintTable(){
+  const rows=visibleRows();
   const semCols = S.showSems ? SEMS.map(n=>['g'+n,'Sem '+n]) : [];
-  const cols=[['rank','#'],['name','Student'],['id','ID'],['sex','Sex'],['session','Session'],
+  const cols=[['rank', isRankView()?'#':'# / cg'],['name','Student'],['id','ID'],['sex','Sex'],['session','Session'],
               ['cgpa','CGPA'],...semCols,['pct','Pctile'],['band','Band'],['totEarn','Cr earned'],['status','Status']];
   const rightAl = k2 => ['rank','cgpa','pct','totEarn'].includes(k2) || /^g\d+$/.test(k2);
   const head=cols.map(([k2,l])=>`<th class="s ${rightAl(k2)?'num':''}${/^g\d+$/.test(k2)?' semcol':''}" data-k="${k2}">${l}${S.sortKey===k2?(S.sortDir>0?' \u2191':' \u2193'):''}</th>`).join('');
-  const body=rows.map(s=>{
+  const body=rows.map((s,i)=>{
     const open=S.open.has(s.id);
     const semCells = semCols.map(([k2])=>{
       const v=s[k2];
       return `<td class="num mono semcol ${S.sortKey===k2?'lead':''}">${v==null?'<span class="dim">\u00b7</span>':f2(v)}</td>`;
     }).join('');
+    const serial = isRankView()
+      ? `${s.rank}`
+      : `${i+1}<span class="cgrank" title="CGPA rank">${s.rank}</span>`;
     return `<tr class="srow ${open?'open':''}" data-id="${esc(s.id)}" tabindex="0" role="button" aria-expanded="${open}">
-    <td class="num mono"><span class="caret">\u203a</span>${s.rank}</td><td class="nm">${esc(shownName(s))}</td>
+    <td class="num mono"><span class="caret">\u203a</span>${serial}</td><td class="nm">${esc(shownName(s))}</td>
     <td class="mono dim">${esc(s.id)}</td><td class="mono">${esc(s.sex)}</td><td class="mono dim">${esc(s.session)}</td>
     <td class="num mono"><b>${f2(s.cgpa)}</b></td>${semCells}<td class="num mono">${f1(s.pct)}</td>
     <td><span class="chip ${s.band==='High'?'hi':s.band==='Mid'?'mid':'lo'}">${s.band||''}</span></td>
@@ -904,7 +915,7 @@ function paintTable(){
   $('qn').textContent=`${rows.length} of ${TABLE.length}`;
   [...$('stw').querySelectorAll('th.s')].forEach(th=>th.onclick=()=>{
     const k2=th.dataset.k;
-    if(S.sortKey===k2) S.sortDir*=-1; else {S.sortKey=k2; S.sortDir=(k2==='name'||k2==='status'||k2==='id'||k2==='sex'||k2==='session'||k2==='band')?1:-1;}
+    if(S.sortKey===k2) S.sortDir*=-1; else {S.sortKey=k2; S.sortDir=['rank','name','status','id','sex','session','band'].includes(k2)?1:-1;}
     paintTable();
   });
   const toggle = id => { S.open.has(id) ? S.open.delete(id) : S.open.add(id); paintTable(); };
@@ -915,11 +926,11 @@ function paintTable(){
 }
 
 function toCSV(){
-  const head=['Rank','Name','StudentID','Registration','Sex','Session','Batch','CGPA',
+  const head=['Position','CGPARank','Name','StudentID','Registration','Sex','Session','Batch','CGPA',
               ...SEMS.map(n=>'Sem'+n+'GPA'),'Percentile','Band','CrEnrolled','CrEarned','Status','Remarks'];
   const lines=[head.join(',')];
-  const src = S.onlyCleared ? TABLE.filter(isCleared) : TABLE;
-  src.forEach(s=>lines.push([s.rank,shownName(s),s.id,s.reg,s.sex,s.session,s.batch,s.cgpa,
+  const src = visibleRows();
+  src.forEach((s,i)=>lines.push([i+1,s.rank,shownName(s),s.id,s.reg,s.sex,s.session,s.batch,s.cgpa,
     ...SEMS.map(n=>s['g'+n]??''),s.pct?.toFixed(1),s.band,s.totEnr,s.totEarn,s.status,s.remarks]
     .map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')));
   const blob=new Blob([lines.join('\n')],{type:'text/csv'});
