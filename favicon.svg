@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <title>Result Analyser</title>
+  <style>
+    .b0{fill:#1d6b4a}.b1{fill:#5f9a56}.b2{fill:#d9a54e}.b3{fill:#a3402a}
+    @media (prefers-color-scheme: dark){
+      .b0{fill:#4fb583}.b1{fill:#7ec37e}.b2{fill:#e0b06b}.b3{fill:#d2685c}
+    }
+  </style>
+  <!-- the grade ribbon, stood on end: a cohort peaking near the top grades -->
+  <rect class="b0" x="3"  y="11" width="5" height="18" rx="1.2"/>
+  <rect class="b1" x="10" y="5"  width="5" height="24" rx="1.2"/>
+  <rect class="b2" x="17" y="15" width="5" height="14" rx="1.2"/>
+  <rect class="b3" x="24" y="21" width="5" height="8"  rx="1.2"/>
+</svg>

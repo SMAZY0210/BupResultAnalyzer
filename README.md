@@ -81,6 +81,10 @@ There is no reason these halves should differ, which makes this a sanity check o
 
 **10 Every student.** Sortable, searchable table with rank, percentile, band, credits earned against enrolled, and status. Exports to CSV.
 
+Click any row to open that student's full grade sheet underneath it: every course with its letter grade, credit weight and grade point, the course titles where the sheet prints them, and a strip of GPA per semester with credits earned against enrolled. A weighted average across just the courses on this sheet is shown too, which is not the same number as the CGPA and is worth comparing against it.
+
+There is also a **Passed and promoted only** filter, which drops anyone marked Not Promoted, Withdrawn, Absent or Incomplete. Handy when you want the picture for students who actually cleared the semester, since a relegated student sitting at 0.00 distorts a ranking badly. The label tells you how many rows it hides. The CSV export respects the filter.
+
 ---
 
 ## Controls
@@ -90,7 +94,8 @@ There is no reason these halves should differ, which makes this a sanity check o
 | **Leave out 0.00 CGPA** | Drops absent and withdrawn students from the statistics. On by default, since a handful of zeros wrecks the mean and SD. Untick to see the raw picture. |
 | **Hide names** | Replaces names with initials and the last four digits of the ID. Useful before screenshotting anything. |
 | **Odd/even read from** | Which identifier the parity split uses. |
-| **Download table as CSV** | Section 10 as it currently stands, respecting the hide-names setting. |
+| **Passed and promoted only** | Section 10 filter. Drops Not Promoted, Withdrawn, Absent and Incomplete rows. |
+| **Download table as CSV** | Section 10 as it currently stands, respecting both the hide-names and the passed-only settings. |
 | **Dark / Light** | Theme toggle, top right. Follows your system setting on first load and remembers your choice after that. |
 
 ---
