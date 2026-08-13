@@ -9,24 +9,49 @@
 <style>
 :root{
   --paper:#e7ebe3; --card:#fbfcf8; --ink:#14201c; --ink2:#4d5c54; --ink3:#7c8a82;
-  --rule:#c5cdbe; --rule2:#dde3d7; --mark:#a3402a; --gold:#8d7420; --blue:#2c5a7a;
-  --g0:#1d6b4a; --g1:#3d8452; --g2:#5f9a56; --g3:#86ac57; --g4:#aab85c;
-  --g5:#c9b95d; --g6:#d9a54e; --g7:#d98a43; --g8:#cd6a38; --g9:#a3402a; --gab:#8a8f88;
-  --sh:0 1px 0 rgba(20,32,28,.06), 0 1px 3px rgba(20,32,28,.05);
+  --rule:#c5cdbe; --rule2:#dde3d7; --mark:#a3402a; --blue:#2c5a7a;
+  --pos:#1d6b4a; --neg:#a3402a; --grid:#dde3d7;
+  --gr0:#1d6b4a; --gr1:#3d8452; --gr2:#5f9a56; --gr3:#86ac57; --gr4:#aab85c;
+  --gr5:#c9b95d; --gr6:#d9a54e; --gr7:#d98a43; --gr8:#cd6a38; --gr9:#a3402a; --gr10:#8a8f88;
+  --chip-hi-bg:#dcece0; --chip-hi-fg:#1d6b4a;
+  --chip-mid-bg:#f0ecd8; --chip-mid-fg:#7d6a18;
+  --chip-lo-bg:#f6e0da; --chip-lo-fg:#a3402a;
+  --chip-ok-bg:#e4eadf; --chip-ok-fg:#4d5c54;
+  --hover:#f2f5ee; --shade-lo:#a3402a; --shade-hi:#1d6b4a; --shade-op:.055;
 }
+[data-theme="dark"]{
+  --paper:#121815; --card:#1a221e; --ink:#e3e9e3; --ink2:#a3b0a8; --ink3:#77857d;
+  --rule:#313d37; --rule2:#252e29; --mark:#e08d72; --blue:#7ab0d4;
+  --pos:#6fc294; --neg:#e08d72; --grid:#1b231f;
+  --gr0:#4fb583; --gr1:#63bd83; --gr2:#7ec37e; --gr3:#9cc97c; --gr4:#b8cb7c;
+  --gr5:#d2c877; --gr6:#e0b06b; --gr7:#e2996a; --gr8:#dd8065; --gr9:#d2685c; --gr10:#6f7a74;
+  --chip-hi-bg:#1d3a2b; --chip-hi-fg:#7fd3a4;
+  --chip-mid-bg:#3a3520; --chip-mid-fg:#dfc978;
+  --chip-lo-bg:#3d241f; --chip-lo-fg:#eda78e;
+  --chip-ok-bg:#26302a; --chip-ok-fg:#a3b0a8;
+  --hover:#212b26; --shade-lo:#e08d72; --shade-hi:#6fc294; --shade-op:.09;
+}
+html{color-scheme:light}
+[data-theme="dark"]{color-scheme:dark}
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{
-  background:var(--paper); color:var(--ink);
+  background:var(--paper); color:var(--ink); transition:background .18s,color .18s;
   font-family:"IBM Plex Sans",system-ui,sans-serif; font-size:15px; line-height:1.55;
-  background-image:linear-gradient(var(--rule2) 1px,transparent 1px),linear-gradient(90deg,var(--rule2) 1px,transparent 1px);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
   background-size:28px 28px; background-position:-1px -1px;
 }
 .wrap{max-width:1180px;margin:0 auto;padding:0 20px 96px}
 
 /* masthead */
 header.mast{padding:44px 0 26px;border-bottom:2px solid var(--ink)}
+.topbar{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
 .eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink3)}
+#theme{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  padding:7px 11px;border:1px solid var(--rule);background:var(--card);color:var(--ink2);
+  border-radius:2px;cursor:pointer;white-space:nowrap;flex-shrink:0;display:flex;align-items:center;gap:7px}
+#theme:hover{border-color:var(--ink3);color:var(--ink)}
+#theme svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round}
 h1{font-family:"IBM Plex Serif",Georgia,serif;font-weight:600;font-size:clamp(30px,5vw,46px);line-height:1.04;margin:8px 0 10px;letter-spacing:-.015em}
 .sub{color:var(--ink2);max-width:60ch;margin:0}
 
@@ -71,7 +96,7 @@ th{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.08em;t
 th.s{cursor:pointer;user-select:none}
 th.s:hover{color:var(--mark)}
 td{padding:7px 11px;border-bottom:1px solid var(--rule2);vertical-align:top}
-tbody tr:hover{background:#f2f5ee}
+tbody tr:hover{background:var(--hover)}
 .num{font-family:"IBM Plex Mono",monospace;text-align:right;font-variant-numeric:tabular-nums}
 .mono{font-family:"IBM Plex Mono",monospace}
 .nm{font-weight:500}
@@ -79,11 +104,11 @@ tbody tr:hover{background:#f2f5ee}
 
 /* chips */
 .chip{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:10.5px;padding:2px 6px;border-radius:2px;letter-spacing:.04em}
-.chip.hi{background:#dcece0;color:#1d6b4a}
-.chip.mid{background:#f0ecd8;color:#7d6a18}
-.chip.lo{background:#f6e0da;color:#a3402a}
-.chip.warn{background:#f6e0da;color:#a3402a}
-.chip.ok{background:#e4eadf;color:#4d5c54}
+.chip.hi{background:var(--chip-hi-bg);color:var(--chip-hi-fg)}
+.chip.mid{background:var(--chip-mid-bg);color:var(--chip-mid-fg)}
+.chip.lo{background:var(--chip-lo-bg);color:var(--chip-lo-fg)}
+.chip.warn{background:var(--chip-lo-bg);color:var(--chip-lo-fg)}
+.chip.ok{background:var(--chip-ok-bg);color:var(--chip-ok-fg)}
 
 /* ribbon */
 .rib{display:flex;height:22px;width:100%;min-width:220px;border:1px solid var(--rule);border-radius:2px;overflow:hidden}
@@ -106,7 +131,10 @@ footer{margin-top:70px;padding-top:18px;border-top:1px solid var(--rule);font-si
 
 <div class="wrap">
 <header class="mast">
-  <div class="eyebrow">RptTabulationSheet / reader</div>
+  <div class="topbar">
+    <div class="eyebrow">RptTabulationSheet / reader</div>
+    <button id="theme" type="button" aria-pressed="false"><span id="tico"></span><span id="tlab">Dark</span></button>
+  </div>
   <h1>Result analyser</h1>
   <p class="sub">Drop a published tabulation sheet in. It reads the grade blocks, the semester summaries and the cumulative column, then works out what the sheet does not tell you directly: who is where, which course sank people, and how the class actually splits.</p>
 
@@ -129,7 +157,8 @@ footer{margin-top:70px;padding-top:18px;border-top:1px solid var(--rule);font-si
 // ==== CORE (pure) ====
 const GP = {'A+':4,'A':3.75,'A-':3.5,'B+':3.25,'B':3,'B-':2.75,'C+':2.5,'C':2.25,'D':2,'F':0,'AB':0};
 const GORDER = ['A+','A','A-','B+','B','B-','C+','C','D','F','AB'];
-const GCOL = {'A+':'#1d6b4a','A':'#3d8452','A-':'#5f9a56','B+':'#86ac57','B':'#aab85c','B-':'#c9b95d','C+':'#d9a54e','C':'#d98a43','D':'#cd6a38','F':'#a3402a','AB':'#8a8f88'};
+// resolved from the stylesheet, so the ribbons restyle themselves when the theme flips
+const GCOL = Object.fromEntries(GORDER.map((g,i)=>[g,`var(--gr${i})`]));
 
 const nh = v => v==null ? '' : String(v).replace(/\s+/g,' ').trim();
 const num = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
@@ -362,6 +391,32 @@ const initials = n => String(n||'').split(/\s+/).filter(Boolean).map(w=>w[0]).jo
 const shownName = s => S.anon ? (initials(s.name)+' \u00b7 '+String(s.id).slice(-4)) : s.name;
 
 const $ = id => document.getElementById(id);
+
+/* ---- theme ---- */
+const ICON = {
+  moon:'<svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>',
+  sun:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>'
+};
+const store = {
+  get(){ try{ return localStorage.getItem('ta-theme'); }catch(e){ return null; } },
+  set(v){ try{ localStorage.setItem('ta-theme',v); }catch(e){} }
+};
+function setTheme(mode){
+  document.documentElement.setAttribute('data-theme', mode);
+  const dark = mode==='dark';
+  $('tico').innerHTML = dark ? ICON.sun : ICON.moon;
+  $('tlab').textContent = dark ? 'Light' : 'Dark';
+  $('theme').setAttribute('aria-pressed', String(dark));
+  $('theme').setAttribute('aria-label', dark ? 'Switch to light theme' : 'Switch to dark theme');
+  store.set(mode);
+}
+const sysDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+setTheme(store.get() || (sysDark && sysDark.matches ? 'dark' : 'light'));
+$('theme').onclick = () =>
+  setTheme(document.documentElement.getAttribute('data-theme')==='dark' ? 'light' : 'dark');
+if(sysDark && sysDark.addEventListener)
+  sysDark.addEventListener('change', e => { if(!store.get()) setTheme(e.matches?'dark':'light'); });
+
 const drop=$('drop'), fin=$('fin');
 drop.onclick=()=>fin.click();
 drop.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();fin.click();} };
@@ -492,25 +547,25 @@ function histSVG(cg, T){
   let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="CGPA distribution">`;
   // tercile shading
   if(Number.isFinite(T.cutLow)&&Number.isFinite(T.cutHigh)){
-    s+=`<rect x="${x(lo)}" y="${P.t}" width="${x(T.cutLow)-x(lo)}" height="${H-P.t-P.b}" fill="#a3402a" opacity=".055"/>`;
-    s+=`<rect x="${x(T.cutHigh)}" y="${P.t}" width="${x(hi)-x(T.cutHigh)}" height="${H-P.t-P.b}" fill="#1d6b4a" opacity=".055"/>`;
+    s+=`<rect x="${x(lo)}" y="${P.t}" width="${x(T.cutLow)-x(lo)}" height="${H-P.t-P.b}" style="fill:var(--shade-lo)" opacity="var(--shade-op)"/>`;
+    s+=`<rect x="${x(T.cutHigh)}" y="${P.t}" width="${x(hi)-x(T.cutHigh)}" height="${H-P.t-P.b}" style="fill:var(--shade-hi)" opacity="var(--shade-op)"/>`;
   }
   bins.forEach((c,i)=>{
     if(!c) return;
     const x0=x(lo+i*bw), x1=x(lo+(i+1)*bw);
-    s+=`<rect x="${x0+.6}" y="${y(c)}" width="${Math.max(1,x1-x0-1.2)}" height="${H-P.b-y(c)}" fill="#2c5a7a" opacity=".78"><title>${(lo+i*bw).toFixed(2)}\u2013${(lo+(i+1)*bw).toFixed(2)}: ${c}</title></rect>`;
+    s+=`<rect x="${x0+.6}" y="${y(c)}" width="${Math.max(1,x1-x0-1.2)}" height="${H-P.b-y(c)}" style="fill:var(--blue)" opacity=".78"><title>${(lo+i*bw).toFixed(2)}\u2013${(lo+(i+1)*bw).toFixed(2)}: ${c}</title></rect>`;
   });
   const m=mean(cg), md=median(cg);
-  s+=`<line x1="${x(m)}" x2="${x(m)}" y1="${P.t}" y2="${H-P.b}" stroke="#a3402a" stroke-width="1.6"/>`;
-  s+=`<text x="${x(m)+4}" y="${P.t+11}" font-family="IBM Plex Mono" font-size="10" fill="#a3402a">mean ${m.toFixed(2)}</text>`;
-  s+=`<line x1="${x(md)}" x2="${x(md)}" y1="${P.t}" y2="${H-P.b}" stroke="#14201c" stroke-width="1" stroke-dasharray="3 3"/>`;
-  s+=`<text x="${x(md)+4}" y="${P.t+24}" font-family="IBM Plex Mono" font-size="10" fill="#14201c">median ${md.toFixed(2)}</text>`;
-  s+=`<line x1="${P.l}" x2="${W-P.r}" y1="${H-P.b}" y2="${H-P.b}" stroke="#14201c"/>`;
+  s+=`<line x1="${x(m)}" x2="${x(m)}" y1="${P.t}" y2="${H-P.b}" style="stroke:var(--mark)" stroke-width="1.6"/>`;
+  s+=`<text x="${x(m)+4}" y="${P.t+11}" font-family="IBM Plex Mono" font-size="10" style="fill:var(--mark)">mean ${m.toFixed(2)}</text>`;
+  s+=`<line x1="${x(md)}" x2="${x(md)}" y1="${P.t}" y2="${H-P.b}" style="stroke:var(--ink)" stroke-width="1" stroke-dasharray="3 3"/>`;
+  s+=`<text x="${x(md)+4}" y="${P.t+24}" font-family="IBM Plex Mono" font-size="10" style="fill:var(--ink)">median ${md.toFixed(2)}</text>`;
+  s+=`<line x1="${P.l}" x2="${W-P.r}" y1="${H-P.b}" y2="${H-P.b}" style="stroke:var(--ink)"/>`;
   for(let v=lo;v<=hi+1e-9;v+=(hi-lo)/6){
-    s+=`<text x="${x(v)}" y="${H-P.b+15}" text-anchor="middle" font-family="IBM Plex Mono" font-size="10" fill="#7c8a82">${v.toFixed(2)}</text>`;
+    s+=`<text x="${x(v)}" y="${H-P.b+15}" text-anchor="middle" font-family="IBM Plex Mono" font-size="10" style="fill:var(--ink3)">${v.toFixed(2)}</text>`;
   }
-  s+=`<text x="${P.l-6}" y="${P.t+9}" text-anchor="end" font-family="IBM Plex Mono" font-size="10" fill="#7c8a82">${mx}</text>`;
-  s+=`<text x="${P.l-6}" y="${H-P.b}" text-anchor="end" font-family="IBM Plex Mono" font-size="10" fill="#7c8a82">0</text>`;
+  s+=`<text x="${P.l-6}" y="${P.t+9}" text-anchor="end" font-family="IBM Plex Mono" font-size="10" style="fill:var(--ink3)">${mx}</text>`;
+  s+=`<text x="${P.l-6}" y="${H-P.b}" text-anchor="end" font-family="IBM Plex Mono" font-size="10" style="fill:var(--ink3)">0</text>`;
   return s+'</svg>';
 }
 
@@ -665,7 +720,7 @@ function secTrend(list, D){
     const g=s.sems.filter(x=>Number.isFinite(x.gpa)).sort((a,b)=>a.sem-b.sem);
     return g.length>1 ? {s, d:g[g.length-1].gpa-g[0].gpa, from:g[0], to:g[g.length-1]} : null;
   }).filter(Boolean).sort((a,b)=>b.d-a.d);
-  const dr=x=>`<tr><td class="nm">${esc(shownName(x.s))}</td><td class="mono dim">${esc(x.s.id)}</td><td class="num mono">${f2(x.from.gpa)}</td><td class="num mono">${f2(x.to.gpa)}</td><td class="num mono"><b style="color:${x.d>=0?'#1d6b4a':'#a3402a'}">${x.d>=0?'+':''}${f2(x.d)}</b></td></tr>`;
+  const dr=x=>`<tr><td class="nm">${esc(shownName(x.s))}</td><td class="mono dim">${esc(x.s.id)}</td><td class="num mono">${f2(x.from.gpa)}</td><td class="num mono">${f2(x.to.gpa)}</td><td class="num mono"><b style="color:${x.d>=0?'var(--pos)':'var(--neg)'}">${x.d>=0?'+':''}${f2(x.d)}</b></td></tr>`;
   const tt=(t,rows)=>`<div><h3 class="mini">${t}</h3><div class="tw"><table><thead><tr><th>Student</th><th>ID</th><th class="num">Sem ${deltas[0].from.sem}</th><th class="num">Latest</th><th class="num">Change</th></tr></thead><tbody>${rows.map(dr).join('')}</tbody></table></div></div>`;
   // sparkline
   const W=760,H=170,P={l:38,r:14,t:14,b:26};
@@ -673,13 +728,13 @@ function secTrend(list, D){
   const X=i=>P.l+(per.length>1?i/(per.length-1):0.5)*(W-P.l-P.r);
   const Y=v=>H-P.b-((v-lo)/(hi-lo))*(H-P.t-P.b);
   let sv=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Mean GPA by semester">`;
-  sv+=`<polyline fill="none" stroke="#2c5a7a" stroke-width="2" points="${per.map((p,i)=>`${X(i)},${Y(p.mean)}`).join(' ')}"/>`;
+  sv+=`<polyline fill="none" style="stroke:var(--blue)" stroke-width="2" points="${per.map((p,i)=>`${X(i)},${Y(p.mean)}`).join(' ')}"/>`;
   per.forEach((p,i)=>{
-    sv+=`<circle cx="${X(i)}" cy="${Y(p.mean)}" r="4" fill="#2c5a7a"><title>Sem ${p.sem}: mean ${p.mean.toFixed(3)} (n=${p.n})</title></circle>`;
-    sv+=`<text x="${X(i)}" y="${Y(p.mean)-11}" text-anchor="middle" font-family="IBM Plex Mono" font-size="10.5" fill="#14201c">${p.mean.toFixed(2)}</text>`;
-    sv+=`<text x="${X(i)}" y="${H-P.b+15}" text-anchor="middle" font-family="IBM Plex Mono" font-size="10" fill="#7c8a82">S${p.sem}</text>`;
+    sv+=`<circle cx="${X(i)}" cy="${Y(p.mean)}" r="4" style="fill:var(--blue)"><title>Sem ${p.sem}: mean ${p.mean.toFixed(3)} (n=${p.n})</title></circle>`;
+    sv+=`<text x="${X(i)}" y="${Y(p.mean)-11}" text-anchor="middle" font-family="IBM Plex Mono" font-size="10.5" style="fill:var(--ink)">${p.mean.toFixed(2)}</text>`;
+    sv+=`<text x="${X(i)}" y="${H-P.b+15}" text-anchor="middle" font-family="IBM Plex Mono" font-size="10" style="fill:var(--ink3)">S${p.sem}</text>`;
   });
-  sv+=`<line x1="${P.l}" x2="${W-P.r}" y1="${H-P.b}" y2="${H-P.b}" stroke="#c5cdbe"/></svg>`;
+  sv+=`<line x1="${P.l}" x2="${W-P.r}" y1="${H-P.b}" y2="${H-P.b}" style="stroke:var(--rule)"/></svg>`;
   const prows=per.map(p=>`<tr><td class="mono">Sem ${p.sem}</td><td class="num mono">${p.n}</td><td class="num mono">${f3(p.mean)}</td><td class="num mono">${f3(p.sd)}</td><td class="num mono">${f2(p.min)}</td><td class="num mono">${f2(p.max)}</td></tr>`).join('');
   return sec('08','Semester to semester',
     `<div style="background:var(--card);border:1px solid var(--rule);padding:14px">${sv}</div>
