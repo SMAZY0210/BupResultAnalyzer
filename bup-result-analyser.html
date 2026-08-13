@@ -135,6 +135,9 @@ tr.drow .inner{padding:16px 18px 18px}
 .semstrip .sv{font-family:"IBM Plex Mono",monospace;font-size:15px;font-weight:500}
 .dmeta{display:flex;flex-wrap:wrap;gap:18px;margin-bottom:12px;font-size:13px;color:var(--ink2)}
 .dmeta b{font-family:"IBM Plex Mono",monospace;color:var(--ink);font-weight:600}
+th.semcol,td.semcol{background:var(--hover)}
+td.semcol.lead{color:var(--mark);font-weight:600}
+th.semcol{border-bottom-color:var(--mark)}
 .chip{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:10.5px;padding:2px 6px;border-radius:2px;letter-spacing:.04em}
 .chip.hi{background:var(--chip-hi-bg);color:var(--chip-hi-fg)}
 .chip.mid{background:var(--chip-mid-bg);color:var(--chip-mid-fg)}
@@ -418,7 +421,7 @@ const parity = s => { const d=lastDigit(s); return d==null?null:(d%2?'Odd':'Even
 const FILES = [];
 let cur = 0;
 const S = {excludeZero:true, idField:'id', anon:false, sortKey:'rank', sortDir:1, q:'',
-           onlyCleared:false, open:new Set()};
+           onlyCleared:false, showSems:true, open:new Set()};
 
 const f2 = v => Number.isFinite(v) ? v.toFixed(2) : '\u2013';
 const f3 = v => Number.isFinite(v) ? v.toFixed(3) : '\u2013';
@@ -805,25 +808,36 @@ function secRisk(list, all){
      ${fr?`<h3 class="mini" style="margin-top:26px">Retakes by course</h3><div class="tw" style="max-width:340px"><table><thead><tr><th>Course</th><th class="num">Sittings to redo</th></tr></thead><tbody>${fr}</tbody></table></div>`:''}`);
 }
 
-let TABLE=[], TITLES={};
+let TABLE=[], TITLES={}, SEMS=[];
 const CLEARED = ['passed','promoted'];
 const isCleared = s => CLEARED.some(w => (s.status||'').toLowerCase().startsWith(w))
                     && !/not\s+promoted/i.test(s.status||'');
 
 function secTable(list, titles){
   TABLE=list; TITLES=titles||{};
+  // every semester number that actually carries a GPA somewhere in the sheet
+  const seen=new Set();
+  list.forEach(s=>s.sems.forEach(x=>{ if(Number.isFinite(x.gpa)) seen.add(x.sem); }));
+  SEMS=[...seen].sort((a,b)=>a-b);
+  // flatten onto the student so the existing sort path can reach them
+  list.forEach(s=>SEMS.forEach(n=>{
+    const f=s.sems.find(x=>x.sem===n);
+    s['g'+n] = f && Number.isFinite(f.gpa) ? f.gpa : null;
+  }));
+  if(!SEMS.length || SEMS.length<2) S.showSems=false;
   const dropped = list.filter(s=>!isCleared(s)).length;
   return sec('10','Every student',
     `<div class="ctrls" style="border-top:none;margin-top:0;padding-top:0">
-      <input type="search" id="q" placeholder="Search name, ID or status" value="${esc(S.q)}" style="min-width:250px">
+      <input type="search" id="q" placeholder="Search name, ID or status" value="${esc(S.q)}" style="min-width:230px">
       <label><input type="checkbox" id="okonly" ${S.onlyCleared?'checked':''}> Passed and promoted only${dropped?` (hides ${dropped})`:''}</label>
+      ${SEMS.length>1?`<label><input type="checkbox" id="showsem" ${S.showSems?'checked':''}> Semester GPA columns (${SEMS.length})</label>`:''}
       <span class="dim mono" id="qn" style="font-size:11.5px"></span>
      </div>
      <div class="tw" id="stw"></div>`,
-    'Click a row to open that student\u2019s full grade sheet. Click a column heading to sort. Percentile is the share of the class sitting strictly below that student.');
+    `Click a row to open that student\u2019s full grade sheet. Click a column heading to sort${SEMS.length>1?', including any single semester, which is how you find who peaked early and who came good late':''}. Percentile is the share of the class sitting strictly below that student.`);
 }
 
-function detailHTML(s){
+function detailHTML(s, span){
   const cards = s.courses.length ? s.courses.map(c=>`
     <div class="gcard">
       <div><div class="cc">${esc(c.code)}</div>
@@ -836,7 +850,7 @@ function detailHTML(s){
      <div class="sl" style="margin-top:2px">${x.earn ?? '\u2013'}/${x.enr ?? '\u2013'} cr</div></div>`).join('')}</div>` : '';
   const taken = sum(s.courses.map(c=>c.cr));
   const wtd = taken ? sum(s.courses.map(c=>c.cr*c.gp))/taken : NaN;
-  return `<tr class="drow" data-for="${esc(s.id)}"><td colspan="10"><div class="inner">
+  return `<tr class="drow" data-for="${esc(s.id)}"><td colspan="${span||10}"><div class="inner">
     <div class="dmeta">
       <span>Reg <b>${esc(s.reg)}</b></span>
       <span>Session <b>${esc(s.session)}</b></span>
@@ -856,23 +870,35 @@ function paintTable(){
   let rows=TABLE.filter(s=>!q || (s.name+' '+s.id+' '+s.reg+' '+s.status).toLowerCase().includes(q));
   if(S.onlyCleared) rows=rows.filter(isCleared);
   const k=S.sortKey;
+  const isSem = /^g\d+$/.test(k);
   rows=[...rows].sort((a,b)=>{
     let x=a[k],y=b[k];
     if(k==='name') { x=shownName(a); y=shownName(b); }
     if(typeof x==='string'||typeof y==='string') return String(x).localeCompare(String(y))*S.sortDir;
-    return ((x??-1)-(y??-1))*S.sortDir;
+    // students who never sat that semester sink to the bottom either way
+    if(x==null && y==null) return 0;
+    if(x==null) return 1;
+    if(y==null) return -1;
+    return (x-y)*S.sortDir;
   });
-  const cols=[['rank','#'],['name','Student'],['id','ID'],['sex','Sex'],['session','Session'],['cgpa','CGPA'],['pct','Pctile'],['band','Band'],['totEarn','Cr earned'],['status','Status']];
-  const head=cols.map(([k2,l])=>`<th class="s ${['rank','cgpa','pct','totEarn'].includes(k2)?'num':''}" data-k="${k2}">${l}${S.sortKey===k2?(S.sortDir>0?' \u2191':' \u2193'):''}</th>`).join('');
+  const semCols = S.showSems ? SEMS.map(n=>['g'+n,'Sem '+n]) : [];
+  const cols=[['rank','#'],['name','Student'],['id','ID'],['sex','Sex'],['session','Session'],
+              ['cgpa','CGPA'],...semCols,['pct','Pctile'],['band','Band'],['totEarn','Cr earned'],['status','Status']];
+  const rightAl = k2 => ['rank','cgpa','pct','totEarn'].includes(k2) || /^g\d+$/.test(k2);
+  const head=cols.map(([k2,l])=>`<th class="s ${rightAl(k2)?'num':''}${/^g\d+$/.test(k2)?' semcol':''}" data-k="${k2}">${l}${S.sortKey===k2?(S.sortDir>0?' \u2191':' \u2193'):''}</th>`).join('');
   const body=rows.map(s=>{
     const open=S.open.has(s.id);
+    const semCells = semCols.map(([k2])=>{
+      const v=s[k2];
+      return `<td class="num mono semcol ${S.sortKey===k2?'lead':''}">${v==null?'<span class="dim">\u00b7</span>':f2(v)}</td>`;
+    }).join('');
     return `<tr class="srow ${open?'open':''}" data-id="${esc(s.id)}" tabindex="0" role="button" aria-expanded="${open}">
     <td class="num mono"><span class="caret">\u203a</span>${s.rank}</td><td class="nm">${esc(shownName(s))}</td>
     <td class="mono dim">${esc(s.id)}</td><td class="mono">${esc(s.sex)}</td><td class="mono dim">${esc(s.session)}</td>
-    <td class="num mono"><b>${f2(s.cgpa)}</b></td><td class="num mono">${f1(s.pct)}</td>
+    <td class="num mono"><b>${f2(s.cgpa)}</b></td>${semCells}<td class="num mono">${f1(s.pct)}</td>
     <td><span class="chip ${s.band==='High'?'hi':s.band==='Mid'?'mid':'lo'}">${s.band||''}</span></td>
     <td class="num mono">${s.totEarn??'\u2013'}${s.totEnr&&s.totEarn<s.totEnr?` <span class="dim">/${s.totEnr}</span>`:''}</td>
-    <td>${esc(s.status)}</td></tr>` + (open?detailHTML(s):'');
+    <td>${esc(s.status)}</td></tr>` + (open?detailHTML(s,cols.length):'');
   }).join('');
   $('stw').innerHTML=`<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
   $('qn').textContent=`${rows.length} of ${TABLE.length}`;
@@ -889,10 +915,12 @@ function paintTable(){
 }
 
 function toCSV(){
-  const head=['Rank','Name','StudentID','Registration','Sex','Session','Batch','CGPA','Percentile','Band','CrEnrolled','CrEarned','Status','Remarks'];
+  const head=['Rank','Name','StudentID','Registration','Sex','Session','Batch','CGPA',
+              ...SEMS.map(n=>'Sem'+n+'GPA'),'Percentile','Band','CrEnrolled','CrEarned','Status','Remarks'];
   const lines=[head.join(',')];
   const src = S.onlyCleared ? TABLE.filter(isCleared) : TABLE;
-  src.forEach(s=>lines.push([s.rank,shownName(s),s.id,s.reg,s.sex,s.session,s.batch,s.cgpa,s.pct?.toFixed(1),s.band,s.totEnr,s.totEarn,s.status,s.remarks]
+  src.forEach(s=>lines.push([s.rank,shownName(s),s.id,s.reg,s.sex,s.session,s.batch,s.cgpa,
+    ...SEMS.map(n=>s['g'+n]??''),s.pct?.toFixed(1),s.band,s.totEnr,s.totEarn,s.status,s.remarks]
     .map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')));
   const blob=new Blob([lines.join('\n')],{type:'text/csv'});
   const a=document.createElement('a');
@@ -909,6 +937,10 @@ function bind(){
   if(csv) csv.onclick=toCSV;
   const ok=$('okonly');
   if(ok) ok.onchange=e=>{S.onlyCleared=e.target.checked; paintTable();};
+  const ss=$('showsem');
+  if(ss) ss.onchange=e=>{ S.showSems=e.target.checked;
+    if(!S.showSems && /^g\d+$/.test(S.sortKey)){ S.sortKey='rank'; S.sortDir=1; }
+    paintTable(); };
   if(q){ q.oninput=e=>{S.q=e.target.value; paintTable();}; paintTable(); }
 }
 </script>

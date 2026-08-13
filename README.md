@@ -83,6 +83,8 @@ There is no reason these halves should differ, which makes this a sanity check o
 
 Click any row to open that student's full grade sheet underneath it: every course with its letter grade, credit weight and grade point, the course titles where the sheet prints them, and a strip of GPA per semester with credits earned against enrolled. A weighted average across just the courses on this sheet is shown too, which is not the same number as the CGPA and is worth comparing against it.
 
+Every semester on the sheet gets its own sortable column, so you can rank the class by Sem 3 alone and see who peaked early against who came good late. Students who never sat a given semester show a dot and sink to the bottom whichever way you sort, rather than being treated as a zero. On a single semester sheet the columns are skipped, since they would only repeat the CGPA.
+
 There is also a **Passed and promoted only** filter, which drops anyone marked Not Promoted, Withdrawn, Absent or Incomplete. Handy when you want the picture for students who actually cleared the semester, since a relegated student sitting at 0.00 distorts a ranking badly. The label tells you how many rows it hides. The CSV export respects the filter.
 
 ---
@@ -95,6 +97,7 @@ There is also a **Passed and promoted only** filter, which drops anyone marked N
 | **Hide names** | Replaces names with initials and the last four digits of the ID. Useful before screenshotting anything. |
 | **Odd/even read from** | Which identifier the parity split uses. |
 | **Passed and promoted only** | Section 10 filter. Drops Not Promoted, Withdrawn, Absent and Incomplete rows. |
+| **Semester GPA columns** | Shows or hides one sortable column per semester in section 10. |
 | **Download table as CSV** | Section 10 as it currently stands, respecting both the hide-names and the passed-only settings. |
 | **Dark / Light** | Theme toggle, top right. Follows your system setting on first load and remembers your choice after that. |
 
