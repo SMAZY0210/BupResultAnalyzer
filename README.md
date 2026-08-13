@@ -89,6 +89,14 @@ Every semester on the sheet gets its own sortable column, so you can rank the cl
 
 There is also a **Passed and promoted only** filter, which drops anyone marked Not Promoted, Withdrawn, Absent or Incomplete. Handy when you want the picture for students who actually cleared the semester, since a relegated student sitting at 0.00 distorts a ranking badly. The label tells you how many rows it hides. The CSV export respects the filter.
 
+**11 CGPA trajectory.** Pick a student and see how their cumulative CGPA actually moved, semester by semester, then where it lands if the remaining semesters go well, badly, or like the last two.
+
+The cumulative line is rebuilt from the semester figures rather than taken from the sheet. BUP weights the CGPA by credits **earned**, not enrolled, which matters for anyone carrying a fail: weighting by enrolled credits drifts by up to 1.5 for those students, while earned credits reproduce the printed CGPA to within 0.007 across all seven test sheets. The rebuilt figure is shown against the printed one when they disagree by more than 0.02, which usually means credits carried in from before the sheet starts.
+
+Three controls sit above it. **Semesters in the programme** sets how far the projection runs, defaulting to eight. **Target CGPA** works backwards instead: it tells you the GPA needed in every remaining semester to land on that number, and says so plainly when the target is already out of reach. The faint dotted line is the class average cumulative, so you can tell a personal climb apart from a semester that was easier for everybody.
+
+Expanded rows in section 10 carry a **See trajectory** button that jumps straight to that student's chart.
+
 ---
 
 ## Controls
@@ -100,6 +108,7 @@ There is also a **Passed and promoted only** filter, which drops anyone marked N
 | **Odd/even read from** | Which identifier the parity split uses. |
 | **Passed and promoted only** | Section 10 filter. Drops Not Promoted, Withdrawn, Absent and Incomplete rows. |
 | **Semester GPA columns** | Shows or hides one sortable column per semester in section 10. |
+| **Semesters in the programme / Target CGPA** | Section 11. Sets the projection horizon, and works out the GPA needed to hit a target. |
 | **Download table as CSV** | Section 10 as it currently stands, respecting both the hide-names and the passed-only settings. |
 | **Dark / Light** | Theme toggle, top right. Follows your system setting on first load and remembers your choice after that. |
 

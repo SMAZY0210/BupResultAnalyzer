@@ -419,11 +419,170 @@ const lastDigit = s => { const m=String(s||'').match(/(\d)\D*$/); return m?+m[1]
 const parity = s => { const d=lastDigit(s); return d==null?null:(d%2?'Odd':'Even'); };
 // ==== END CORE ====
 
-/* ---------- rendering ---------- */
+/* ---- trajectory ---- */
+// BUP weights the cumulative by credits EARNED, not enrolled. Checked against
+// every sample sheet: earned reproduces the printed CGPA to within rounding,
+// enrolled drifts by up to 1.5 for anyone carrying a fail.
+function runningCG(s){
+  const out=[]; let cr=0, pts=0;
+  [...s.sems].sort((a,b)=>a.sem-b.sem).forEach(x=>{
+    if(!Number.isFinite(x.gpa)) return;
+    const w = x.earn ?? 0;
+    cr += w; pts += w*x.gpa;
+    out.push({sem:x.sem, gpa:x.gpa, earn:w, enr:x.enr, cr, cg: cr? pts/cr : null});
+  });
+  return out;
+}
+function project(hist, total, perSem, assumed){
+  const last = hist[hist.length-1];
+  let cr = last.cr, pts = last.cg*last.cr;
+  const out=[{sem:last.sem, cg:last.cg}];
+  for(let n=last.sem+1;n<=total;n++){
+    cr += perSem; pts += perSem*assumed;
+    out.push({sem:n, cg:pts/cr});
+  }
+  return out;
+}
+// GPA needed each remaining semester to land on a target
+function needed(hist, total, perSem, target){
+  const last=hist[hist.length-1], rem=total-last.sem;
+  if(rem<=0) return null;
+  const cr=last.cr, pts=last.cg*cr, add=rem*perSem;
+  return (target*(cr+add)-pts)/add;
+}
+
+function trajSVG(hist, proj, total, classAvg){
+  const W=760,H=290,P={l:44,r:120,t:16,b:34};
+  const lo=Math.min(2, ...hist.map(h=>Math.min(h.cg,h.gpa)))-.05;
+  const hi=4.02;
+  const X=n=>P.l+((n-1)/Math.max(1,total-1))*(W-P.l-P.r);
+  const Y=v=>H-P.b-((v-lo)/(hi-lo))*(H-P.t-P.b);
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="CGPA trajectory">`;
+  // gridlines
+  for(let v=Math.ceil(lo*4)/4; v<=4.001; v+=.25){
+    s+=`<line x1="${P.l}" x2="${W-P.r}" y1="${Y(v)}" y2="${Y(v)}" style="stroke:var(--rule)" stroke-width=".6" opacity=".55"/>`;
+    if(Math.abs(v*2%1)<.01) s+=`<text x="${P.l-7}" y="${Y(v)+3.5}" text-anchor="end" font-family="IBM Plex Mono" font-size="9.5" style="fill:var(--ink3)">${v.toFixed(2)}</text>`;
+  }
+  // future zone
+  const lastSem=hist[hist.length-1].sem;
+  if(total>lastSem){
+    s+=`<rect x="${X(lastSem)}" y="${P.t}" width="${X(total)-X(lastSem)}" height="${H-P.t-P.b}" style="fill:var(--ink)" opacity=".04"/>`;
+    s+=`<text x="${X(lastSem)+6}" y="${P.t+11}" font-family="IBM Plex Mono" font-size="9.5" style="fill:var(--ink3)">projected</text>`;
+  }
+  // class average cumulative, for context
+  if(classAvg.length>1)
+    s+=`<polyline fill="none" style="stroke:var(--ink3)" stroke-width="1.2" stroke-dasharray="2 3" opacity=".8"
+        points="${classAvg.map(c=>`${X(c.sem)},${Y(c.cg)}`).join(' ')}"/>`;
+  // per-semester GPA
+  s+=`<polyline fill="none" style="stroke:var(--blue)" stroke-width="1.3" opacity=".5"
+      points="${hist.map(h=>`${X(h.sem)},${Y(h.gpa)}`).join(' ')}"/>`;
+  hist.forEach(h=>{ s+=`<circle cx="${X(h.sem)}" cy="${Y(h.gpa)}" r="3" style="fill:var(--blue)" opacity=".6"><title>Sem ${h.sem} GPA ${h.gpa.toFixed(2)}</title></circle>`; });
+  // projections
+  proj.forEach(p=>{
+    s+=`<polyline fill="none" style="stroke:${p.colour}" stroke-width="1.6" stroke-dasharray="4 3" opacity=".95"
+        points="${p.pts.map(c=>`${X(c.sem)},${Y(c.cg)}`).join(' ')}"/>`;
+    const end=p.pts[p.pts.length-1];
+    s+=`<circle cx="${X(end.sem)}" cy="${Y(end.cg)}" r="3.2" style="fill:${p.colour}"/>`;
+    s+=`<text x="${X(end.sem)+8}" y="${Y(end.cg)+3.5}" font-family="IBM Plex Mono" font-size="10.5" style="fill:${p.colour}">${end.cg.toFixed(2)} ${p.label}</text>`;
+  });
+  // actual cumulative, drawn last so it sits on top
+  s+=`<polyline fill="none" style="stroke:var(--ink)" stroke-width="2.4"
+      points="${hist.map(h=>`${X(h.sem)},${Y(h.cg)}`).join(' ')}"/>`;
+  hist.forEach(h=>{ s+=`<circle cx="${X(h.sem)}" cy="${Y(h.cg)}" r="3.6" style="fill:var(--ink)"><title>After sem ${h.sem}: CGPA ${h.cg.toFixed(2)}</title></circle>`; });
+  for(let n=1;n<=total;n++)
+    s+=`<text x="${X(n)}" y="${H-P.b+15}" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" style="fill:var(--ink3)">${n}</text>`;
+  s+=`<line x1="${P.l}" x2="${W-P.r}" y1="${H-P.b}" y2="${H-P.b}" style="stroke:var(--ink)"/>`;
+  return s+'</svg>';
+}
+
+function secTraj(list){
+  const multi = list.filter(s=>runningCG(s).length>1);
+  if(!multi.length) return sec('11','CGPA trajectory',
+    `<div class="empty">This sheet carries a single semester, so there is no trajectory to plot yet.</div>`);
+  if(!S.pick || !multi.some(s=>s.id===S.pick))
+    S.pick = [...multi].sort((a,b)=>b.cgpa-a.cgpa)[0].id;
+  const opts = [...multi].sort((a,b)=>shownName(a).localeCompare(shownName(b)))
+    .map(s=>`<option value="${esc(s.id)}" ${s.id===S.pick?'selected':''}>${esc(shownName(s))} \u00b7 ${f2(s.cgpa)}</option>`).join('');
+  const maxSem = Math.max(...multi.flatMap(s=>s.sems.map(x=>x.sem)));
+  if(!S.total || S.total<maxSem) S.total = Math.max(8, maxSem);
+  return sec('11','CGPA trajectory',
+    `<div class="ctrls" style="border-top:none;margin-top:0;padding-top:0">
+      <label>Student <select id="pick" style="min-width:250px">${opts}</select></label>
+      <label>Semesters in the programme <input type="number" id="tot" min="${maxSem}" max="16" value="${S.total}" style="width:62px"></label>
+      <label>Target CGPA <input type="number" id="tgt" min="2" max="4" step="0.05" value="${S.target}" style="width:70px"></label>
+     </div>
+     <div id="traj"></div>`,
+    'The solid line is the cumulative CGPA as it actually moved, rebuilt from the semester figures. Dashed lines carry it forward under three assumptions. The faint dotted line is the class average, so you can see whether a climb is personal or just an easier semester for everyone.');
+}
+
+function paintTraj(list){
+  const host = $('traj'); if(!host) return;
+  const s = list.find(x=>x.id===S.pick); if(!s) return;
+  const hist = runningCG(s);
+  const total = S.total, last = hist[hist.length-1], rem = total-last.sem;
+
+  // class average cumulative, over students who sat each semester
+  const all = list.map(runningCG).filter(h=>h.length>1);
+  const classAvg=[];
+  for(let n=1;n<=last.sem;n++){
+    const v=all.map(h=>h.find(x=>x.sem===n)).filter(Boolean).map(x=>x.cg);
+    if(v.length) classAvg.push({sem:n, cg:mean(v)});
+  }
+
+  const gpas = hist.map(h=>h.gpa);
+  const recent = mean(gpas.slice(-2));
+  const best = Math.max(...gpas), worst = Math.min(...gpas);
+  const perSem = mean(hist.map(h=>h.enr ?? h.earn).filter(Number.isFinite)) || mean(hist.map(h=>h.earn));
+
+  let proj=[], summary='';
+  if(rem>0){
+    proj=[
+      {label:'if best form',  colour:'var(--pos)',  pts:project(hist,total,perSem,best)},
+      {label:'recent form',   colour:'var(--blue)', pts:project(hist,total,perSem,recent)},
+      {label:'if worst form', colour:'var(--neg)',  pts:project(hist,total,perSem,worst)}
+    ];
+    const need = needed(hist,total,perSem,S.target);
+    const reach = need<=4.0001;
+    summary = `<div class="grid" style="margin-top:20px">
+      ${cellHTML('Now', f2(last.cg), `after semester ${last.sem}`)}
+      ${cellHTML('Recent form', f2(recent), 'last two semesters')}
+      ${cellHTML('Left to go', rem+(rem>1?' semesters':' semester'), `about ${f1(perSem)} credits each`)}
+      ${cellHTML('On recent form', f2(proj[1].pts[proj[1].pts.length-1].cg), 'projected finish')}
+      ${cellHTML('Ceiling', f2(proj[0].pts[proj[0].pts.length-1].cg), 'if every remaining semester matches their best')}
+      ${cellHTML('To reach '+f2(S.target), reach?f2(need):'out of reach',
+        reach ? `needs ${f2(need)} GPA every remaining semester`
+              : `would need ${f2(need)}, above the 4.00 ceiling`)}
+     </div>`;
+  } else {
+    summary = `<div class="grid" style="margin-top:20px">
+      ${cellHTML('Final CGPA', f2(last.cg), `after semester ${last.sem}`)}
+      ${cellHTML('Best semester', f2(best))}
+      ${cellHTML('Weakest semester', f2(worst))}
+      ${cellHTML('Swing', f2(best-worst), 'best to weakest')}
+     </div>`;
+  }
+
+  const rows = hist.map((h,i)=>{
+    const d = i? h.cg-hist[i-1].cg : null;
+    return `<tr><td class="mono">Sem ${h.sem}</td><td class="num mono">${f2(h.gpa)}</td>
+      <td class="num mono"><b>${f2(h.cg)}</b></td>
+      <td class="num mono">${d==null?'<span class="dim">\u2013</span>':`<span style="color:${d>=0?'var(--pos)':'var(--neg)'}">${d>=0?'+':''}${f2(d)}</span>`}</td>
+      <td class="num mono">${h.earn}${h.enr&&h.earn<h.enr?` <span class="dim">/${h.enr}</span>`:''}</td>
+      <td class="num mono dim">${f2(h.cr)}</td></tr>`;
+  }).join('');
+
+  host.innerHTML =
+    `<div style="background:var(--card);border:1px solid var(--rule);padding:14px">${trajSVG(hist,proj,total,classAvg)}</div>
+     ${summary}
+     <h3 class="mini" style="margin-top:26px">${esc(shownName(s))} semester by semester</h3>
+     <div class="tw"><table><thead><tr><th>Semester</th><th class="num">GPA</th><th class="num">CGPA after</th><th class="num">Move</th><th class="num">Credits earned</th><th class="num">Running credits</th></tr></thead><tbody>${rows}</tbody></table></div>
+     ${Math.abs(last.cg-(s.cgpa??last.cg))>0.02?`<p class="note" style="margin-top:12px">Rebuilt CGPA is ${f2(last.cg)} against the ${f2(s.cgpa)} printed on the sheet. A gap this size usually means carried credits from before this sheet begins.</p>`:''}`;
+}
 const FILES = [];
 let cur = 0;
 const S = {excludeZero:true, idField:'id', anon:false, sortKey:'rank', sortDir:1, q:'',
-           onlyCleared:false, showSems:true, open:new Set()};
+           onlyCleared:false, showSems:true, open:new Set(),
+           pick:null, total:null, target:3.75};
 
 const f2 = v => Number.isFinite(v) ? v.toFixed(2) : '\u2013';
 const f3 = v => Number.isFinite(v) ? v.toFixed(3) : '\u2013';
@@ -517,6 +676,7 @@ function draw(){
   html.push(secTrend(list, D));
   html.push(secRisk(list, all));
   html.push(secTable(list, D.titles));
+  html.push(secTraj(list));
   $('app').innerHTML = html.join('');
   bind();
 }
@@ -861,6 +1021,8 @@ function detailHTML(s, span){
       <span>CGPA <b>${f2(s.cgpa)}</b></span>
       ${Number.isFinite(wtd)?`<span>This sheet\u2019s courses <b>${f2(wtd)}</b> weighted</span>`:''}
       ${s.remarks?`<span class="chip warn">${esc(s.remarks)}</span>`:''}
+      ${s.sems.filter(x=>Number.isFinite(x.gpa)).length>1
+        ? `<button class="act togo" data-go="${esc(s.id)}" style="font-size:11px;padding:4px 10px">See trajectory</button>` : ''}
     </div>
     ${cards?`<div class="gcards">${cards}</div>`:'<div class="empty">No course rows on this sheet.</div>'}
     ${sems}
@@ -919,6 +1081,13 @@ function paintTable(){
     paintTable();
   });
   const toggle = id => { S.open.has(id) ? S.open.delete(id) : S.open.add(id); paintTable(); };
+  [...$('stw').querySelectorAll('.togo')].forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
+    S.pick=b.dataset.go;
+    paintTraj(TABLE);
+    const sel=$('pick'); if(sel) sel.value=S.pick;
+    const t=$('traj'); if(t&&t.scrollIntoView) t.scrollIntoView({behavior:'smooth',block:'center'});
+  });
   [...$('stw').querySelectorAll('tr.srow')].forEach(tr=>{
     tr.onclick=()=>toggle(tr.dataset.id);
     tr.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggle(tr.dataset.id); } };
@@ -953,5 +1122,13 @@ function bind(){
     if(!S.showSems && /^g\d+$/.test(S.sortKey)){ S.sortKey='rank'; S.sortDir=1; }
     paintTable(); };
   if(q){ q.oninput=e=>{S.q=e.target.value; paintTable();}; paintTable(); }
+  const pk=$('pick'), tot=$('tot'), tgt=$('tgt');
+  const L=(FILES[cur]&&FILES[cur].data)?TABLE:[];
+  if(pk){ pk.onchange=e=>{S.pick=e.target.value; paintTraj(L);};
+    tot.onchange=e=>{ const v=parseInt(e.target.value,10);
+      if(Number.isFinite(v)&&v>=+e.target.min&&v<=16){ S.total=v; paintTraj(L); } else e.target.value=S.total; };
+    tgt.onchange=e=>{ const v=parseFloat(e.target.value);
+      if(Number.isFinite(v)&&v>0&&v<=4){ S.target=v; paintTraj(L); } else e.target.value=S.target; };
+    paintTraj(L); }
 }
 </script>
